@@ -1,5 +1,3 @@
-// use std::thread::Thread;
-
 use std::{sync::{Arc, Mutex, mpsc}, thread};
 
 pub struct ThreadPool {

@@ -1,16 +1,23 @@
-use std::{fs, io::{BufReader, prelude::*}, net::{TcpListener, TcpStream}};
+use std::{
+    fs,
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+};
 
-use web_server::ThreadPool;
+use crate::thread_pool::ThreadPool;
+
+mod thread_pool;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = ThreadPool::new(4);
 
-    for stream in listener.incoming().take(2) { // take(2) shuts down server after 2nd request to demo shutdown
+    for stream in listener.incoming().take(2) {
+        // take(2) shuts down server after 2nd request to demo shutdown
         let stream = stream.unwrap();
 
         pool.execute(|| {
-            handle_connection(stream);     
+            handle_connection(stream);
         });
     }
 }
@@ -29,7 +36,6 @@ fn handle_connection(mut stream: TcpStream) {
     let length = contents.len();
 
     let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-    
+
     stream.write_all(response.as_bytes()).unwrap();
 }
-
