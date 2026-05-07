@@ -4,16 +4,13 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::thread_pool::ThreadPool;
-
-mod thread_pool;
+use web_server::thread_pool::ThreadPool;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = ThreadPool::new(4);
 
-    for stream in listener.incoming().take(2) {
-        // take(2) shuts down server after 2nd request to demo shutdown
+    for stream in listener.incoming() {
         let stream = stream.unwrap();
 
         pool.execute(|| {
