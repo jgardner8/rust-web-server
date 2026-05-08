@@ -8,7 +8,7 @@ use crate::vec::Vec;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: Option<mpsc::Sender<Job>>,
+    sender: Option<mpsc::Sender<Job>>, // guaranteed Some until Drop
 }
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
@@ -44,8 +44,8 @@ impl ThreadPool {
         let job = Box::new(f);
 
         let sender = self.sender.as_ref().unwrap(); // unwrap is safe - None isn't used before drop
-        
-        sender.send(job).expect("Fatal: mpsc::Receiver has been deallocated");
+
+        sender.send(job).expect("Fatal: Receiver deallocated");
     }
 }
 
@@ -54,9 +54,12 @@ impl Drop for ThreadPool {
         drop(self.sender.take()); // manually drop sender first so workers stop looking for new jobs
 
         for worker in self.workers.drain() {
-            println!("Shutting down worker {}", worker.id);
+            println!("Shutting down Worker {}", worker.id);
 
-            worker.thread.join().unwrap_or_else(|_| panic!("Fatal: worker {} panicked", worker.id));
+            worker
+                .thread
+                .join()
+                .unwrap_or_else(|_| panic!("Fatal: Worker {} panicked", worker.id));
         }
     }
 }
@@ -70,7 +73,10 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                let message = receiver.lock().expect("Fatal: mutex holder panicked").recv();
+                let message = receiver
+                    .lock()
+                    .expect("Fatal: mutex holder panicked")
+                    .recv();
 
                 match message {
                     Ok(job) => {

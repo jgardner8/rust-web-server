@@ -67,7 +67,7 @@ impl<T> Vec<T> {
 
     pub fn remove(&mut self, index: usize) -> T {
         assert!(index < self.len, "index out of bounds");
-        
+
         self.len -= 1;
         let count = self.len - index;
 
