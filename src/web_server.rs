@@ -10,7 +10,7 @@ pub struct WebServer;
 
 impl WebServer {
     pub fn bind_and_listen_forever<A: ToSocketAddrs>(address: A) {
-        let listener = TcpListener::bind(address).expect("Failed to bind address");
+        let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
         let pool = ThreadPool::new(4);
 
         for stream in listener.incoming() {

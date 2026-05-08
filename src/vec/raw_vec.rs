@@ -30,7 +30,7 @@ impl<T> RawVec<T> {
         assert!(mem::size_of::<T>() != 0, "with_capacity for ZST");
 
         let mut raw_vec = RawVec::new();
-        let layout = Layout::array::<T>(capacity).expect("Allocation too large");
+        let layout = Layout::array::<T>(capacity).expect("Fatal: Allocation too large");
         raw_vec.allocate(capacity, layout);
         raw_vec
     }
@@ -45,7 +45,7 @@ impl<T> RawVec<T> {
         assert!(mem::size_of::<T>() != 0, "capacity overflow");
 
         let new_cap = if self.cap == 0 { 1 } else { 2 * self.cap }; // cannot overflow since self.cap <= isize::MAX
-        let new_layout = Layout::array::<T>(new_cap).expect("Allocation too large");
+        let new_layout = Layout::array::<T>(new_cap).expect("Fatal: Allocation too large");
 
         self.allocate(new_cap, new_layout);
     }

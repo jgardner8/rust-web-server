@@ -40,24 +40,23 @@ impl ThreadPool {
         }
     }
 
-    pub fn execute<F>(&self, f: F)
-    where
-        F: FnOnce() + Send + 'static,
-    {
+    pub fn execute<F: FnOnce() + Send + 'static>(&self, f: F) {
         let job = Box::new(f);
 
-        self.sender.as_ref().unwrap().send(job).unwrap();
+        let sender = self.sender.as_ref().unwrap(); // unwrap is safe - None isn't used before drop
+        
+        sender.send(job).expect("Fatal: mpsc::Receiver has been deallocated");
     }
 }
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        drop(self.sender.take());
+        drop(self.sender.take()); // manually drop sender first so workers stop looking for new jobs
 
         for worker in self.workers.drain() {
             println!("Shutting down worker {}", worker.id);
 
-            worker.thread.join().unwrap();
+            worker.thread.join().unwrap_or_else(|_| panic!("Fatal: worker {} panicked", worker.id));
         }
     }
 }
@@ -71,15 +70,14 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                let message = receiver.lock().unwrap().recv();
+                let message = receiver.lock().expect("Fatal: mutex holder panicked").recv();
 
                 match message {
                     Ok(job) => {
-                        println!("Worker {id} got a job; executing.");
                         job();
                     }
                     Err(_) => {
-                        println!("Worker {id} disconnected; shutting down.");
+                        println!("Worker {id} shutting down");
                         break;
                     }
                 }
