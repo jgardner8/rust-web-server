@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::arc::Arc;
+use crate::vec::Vec;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -53,7 +54,7 @@ impl Drop for ThreadPool {
     fn drop(&mut self) {
         drop(self.sender.take());
 
-        for worker in self.workers.drain(..) {
+        for worker in self.workers.drain() {
             println!("Shutting down worker {}", worker.id);
 
             worker.thread.join().unwrap();
