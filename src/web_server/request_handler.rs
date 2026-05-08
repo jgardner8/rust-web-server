@@ -16,15 +16,15 @@ pub enum ResponseType {
     Function(Box<RequestProcessorFn>),
 }
 
-type RequestProcessorFn = dyn Fn(RequestMethod, Resource) -> Response + Sync;
+type RequestProcessorFn = dyn Fn(RequestMethod, Resource) -> Response + Send + Sync;
 
-pub struct Resource<'a> {
-    pub path: &'a str,
+pub struct Resource {
+    pub path: String,
 }
 
 pub struct RequestPattern {
     method: RequestMethod,
-    resource: Resource<'static>,
+    resource: Resource,
     response_type: ResponseType,
 }
 
@@ -58,17 +58,17 @@ impl FromStr for RequestMethod {
     }
 }
 
-impl<'a> Resource<'a> {
-    pub fn new(path: &'a str) -> Self {
-        Resource { path }
+impl Resource {
+    pub fn new(path: &str) -> Self {
+        Resource { path: String::from(path) }
     }
 }
 
 impl RequestPattern {
-    pub fn new(method: RequestMethod, path: &'static str, response_type: ResponseType) -> Self {
+    pub fn new(method: RequestMethod, path: &str, response_type: ResponseType) -> Self {
         RequestPattern {
             method,
-            resource: Resource { path },
+            resource: Resource::new(path),
             response_type,
         }
     }
@@ -136,7 +136,7 @@ impl RequestHandler {
 
                 // Exits infinite failure loop when failing to load error page
                 if is_error_response {
-                    Response::new(500, String::from("Internal Server Error"))
+                    Response::new(500, "Internal Server Error".to_string())
                 } else {
                     self.error_response(404, method, resource)
                 }
@@ -158,7 +158,7 @@ impl RequestHandler {
             Some(error_page) => {
                 self.response_from_type(&error_page.response_type, method, resource, true)
             }
-            None => Response::new(status_code, String::default()),
+            None => Response::new(status_code, "".to_string()),
         }
     }
 }

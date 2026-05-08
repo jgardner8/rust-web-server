@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    arc::Arc,
     thread_pool::ThreadPool,
     web_server::{
         RequestPattern,
@@ -22,13 +23,13 @@ impl WebServer {
         let thread_pool = ThreadPool::new(4);
         let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
 
-        let request_matcher = Box::new(RequestHandler::new(request_patterns, error_pages));
-        let request_matcher = Box::leak(request_matcher);
+        let request_matcher = Arc::new(RequestHandler::new(request_patterns, error_pages));
 
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    thread_pool.execute(|| {
+                    let request_matcher = request_matcher.clone();
+                    thread_pool.execute(move || {
                         handle_connection(stream, request_matcher);
                     });
                 }
@@ -40,7 +41,7 @@ impl WebServer {
     }
 }
 
-fn handle_connection(mut stream: TcpStream, request_matcher: &'static RequestHandler) {
+fn handle_connection(mut stream: TcpStream, request_matcher: Arc<RequestHandler>) {
     match get_request_line(&stream) {
         Ok(request_line) => {
             let response = request_matcher.map_to_response(&request_line);
