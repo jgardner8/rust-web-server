@@ -83,7 +83,7 @@ impl<T> Vec<T> {
     }
 
     pub fn drain(&mut self) -> Drain<'_, T> {
-        let iter = unsafe { RawValIter::new(&self) };
+        let iter = unsafe { RawValIter::new(self) };
 
         // this is a mem::forget safety thing. If Drain is forgotten, we just
         // leak the whole Vec's contents. Also we need to do this *eventually*
@@ -94,9 +94,15 @@ impl<T> Vec<T> {
     }
 }
 
+impl<T> Default for Vec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Drop for Vec<T> {
     fn drop(&mut self) {
-        while let Some(_) = self.pop() {}
+        while self.pop().is_some() {}
         // deallocation is handled by RawVec
     }
 }
