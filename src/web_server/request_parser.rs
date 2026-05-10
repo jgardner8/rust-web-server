@@ -147,3 +147,25 @@ impl RequestParser {
         ParseResult::Success(Request::new(method, resource, headers, body))
     }
 }
+
+impl ParseResult {
+    pub fn to_log(&self) -> String {
+        match self {
+            ParseResult::StreamError(e) => {
+                format!("Client Error: Connection closed prematurely: {:?}\n", e)
+            }
+            ParseResult::FailedOnRequestLine(_status_line) => {
+                format!("Client Error: Cannot parse request line")
+            }
+            ParseResult::FailedOnHeaders(_status_line, method, resource) => format!(
+                "Client Error: Cannot parse headers - {:?} {}",
+                method, resource.path
+            ),
+            ParseResult::FailedOnBody(_status_line, method, resource, _) => format!(
+                "Client Error: Cannot parse body - {:?} {}",
+                method, resource.path
+            ),
+            ParseResult::Success(request) => request.to_log(),
+        }
+    }
+}

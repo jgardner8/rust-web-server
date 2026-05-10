@@ -50,14 +50,18 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHand
         .expect("set_write_timeout system call failed");
 
     let request_parse_result = RequestParser::parse_stream(&tcp_stream);
-    let maybe_response = handle_request_parse_result(request_parse_result, request_handler);
-    if let Some(response) = maybe_response {
+
+    print!("{}", request_parse_result.to_log());
+
+    if let Some(response) = handle_request_parse_result(request_parse_result, request_handler) {
+        println!(" -> {}", response.to_log());
+
         tcp_stream
             .write_all(response.encode_http_str().as_bytes())
             .unwrap_or_else(|e| {
                 eprintln!("Error: Failed to write response: {:?}", e);
             });
-    };
+    }
 }
 
 fn handle_request_parse_result(
@@ -65,10 +69,7 @@ fn handle_request_parse_result(
     request_handler: Arc<RequestHandler>,
 ) -> Option<Response> {
     match request_parse_result {
-        ParseResult::StreamError(e) => {
-            println!("Client Error: Connection closed prematurely: {:?}", e);
-            None
-        }
+        ParseResult::StreamError(_) => None,
         ParseResult::FailedOnRequestLine(status_line) => Some(request_handler.error_response(
             status_line,
             &Request::new(

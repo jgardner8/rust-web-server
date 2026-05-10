@@ -65,6 +65,10 @@ impl Response {
             self.body
         )
     }
+
+    pub fn to_log(&self) -> String {
+        self.status_line.encode_http_str()
+    }
 }
 
 impl From<StatusLine> for Response {

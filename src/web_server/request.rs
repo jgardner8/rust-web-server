@@ -1,6 +1,5 @@
 use std::{borrow::Cow, collections::BTreeMap, str::FromStr};
 
-#[derive(Debug)]
 pub struct Request {
     pub method: RequestMethod,
     pub resource: Resource,
@@ -19,7 +18,6 @@ pub enum RequestMethod {
     Unknown,
 }
 
-#[derive(Debug)]
 pub struct Resource {
     pub path: Cow<'static, str>,
 }
@@ -37,6 +35,10 @@ impl Request {
             headers,
             body,
         }
+    }
+
+    pub fn to_log(&self) -> String {
+        format!("{:?} {}", self.method, self.resource.path) // don't want to log PI from headers or body
     }
 }
 
