@@ -23,6 +23,7 @@ impl StatusLine {
             403 => "Forbidden",
             404 => "Not Found",
             405 => "Method Not Allowed",
+            411 => "Length Required",
             413 => "Content Too Large",
             414 => "URI Too Long",
             429 => "Too Many Requests",
@@ -52,11 +53,11 @@ impl Response {
     pub fn encode_http_str(&self) -> String {
         format!(
             concat!(
-                "{}\n",
-                "Content-Length: {}\n",
-                "Content-Type: text/html; charset=utf-8\n",
-                "Connection: Closed\n",
-                "\n",
+                "{}\r\n",
+                "Content-Length: {}\r\n",
+                "Content-Type: text/html; charset=utf-8\r\n",
+                "Connection: Closed\r\n",
+                "\r\n",
                 "{}"
             ),
             self.status_line.encode_http_str(),
