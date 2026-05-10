@@ -1,6 +1,6 @@
-use std::{convert, io::{self, prelude::{Read, BufRead}, BufReader}, net::TcpStream, str::FromStr};
+use std::{collections::BTreeMap, convert, io::{self, BufReader, prelude::{BufRead, Read}}, net::TcpStream, str::FromStr};
 
-use crate::web_server::{ErrorPage, RequestMethod, RequestPattern, Resource, Response, StatusLine};
+use crate::web_server::{ErrorPage, RequestMethod, RequestPattern, Resource, Response, StatusLine, Request};
 
 pub struct RequestHandler {
     request_patterns: Box<[RequestPattern]>,
@@ -107,11 +107,18 @@ impl RequestHandler {
             return Ok(self.error_response(StatusLine::new(414), RequestMethod::Unknown, &Resource::invalid()))
         }
 
-        let response = self.request_line_to_response(&buf.trim_end());
+        let request_line = String::from(buf.trim_end());
+        let response = self.request_line_to_response(&request_line);
+
+        println!(
+            "{} -> {}",
+            request_line,
+            response.status_line.encode_http_str()
+        );
 
         buf.clear();
         let mut bytes_read: usize = 0;
-        let mut headers = Vec::new();
+        let mut headers = BTreeMap::new();
         loop {
             bytes_read += reader.by_ref().take(MAX_HEADERS_SIZE.into()).read_line(buf)?;
             if bytes_read >= MAX_HEADERS_SIZE.into() {
@@ -121,13 +128,17 @@ impl RequestHandler {
                 break
             }
 
-            headers.push(buf.clone()); // TODO: trim_end
+            match buf.split_once(":") {
+                Some((k, v)) => headers.insert(String::from(k.trim()), String::from(v.trim())),
+                None => return Ok(self.error_response(StatusLine::new(400), RequestMethod::Unknown, &Resource::invalid()))
+            };
+            
             buf.clear();
         }
 
         // TODO: look at content length, responding with 411 if not provided
+        buf.clear();
         if !reader.buffer().is_empty() {
-            buf.clear();
             bytes_read = 0;
             let mut prev_bytes_read = 0;
             loop {
@@ -144,11 +155,9 @@ impl RequestHandler {
             }
         }        
 
-        println!(
-            "{} -> {}",
-            buf,
-            response.status_line.encode_http_str()
-        );
+        let request = Request::new(RequestMethod::Unknown, Resource::invalid(), headers, buf.clone());
+
+        println!("request {:?}", request);
 
         Ok(response)
     }

@@ -1,21 +1,6 @@
-use std::{borrow::Cow, fs, str::FromStr};
+use std::{borrow::Cow, fs};
 
-use crate::web_server::{Response, StatusLine};
-
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub enum RequestMethod {
-    Get,
-    Head,
-    Post,
-    Put,
-    Delete,
-    Patch,
-    Unknown,
-}
-
-pub struct Resource {
-    pub path: Cow<'static, str>,
-}
+use crate::web_server::{RequestMethod, Resource, Response, StatusLine};
 
 pub enum ResponseType {
     File(Cow<'static, str>),
@@ -30,21 +15,6 @@ pub struct RequestPattern {
 
 type RequestProcessorFn =
     dyn Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync;
-
-impl FromStr for RequestMethod {
-    type Err = ();
-    fn from_str(input: &str) -> Result<RequestMethod, Self::Err> {
-        match input {
-            "GET" => Ok(RequestMethod::Get),
-            "HEAD" => Ok(RequestMethod::Head),
-            "POST" => Ok(RequestMethod::Post),
-            "PUT" => Ok(RequestMethod::Put),
-            "DELETE" => Ok(RequestMethod::Delete),
-            "PATCH" => Ok(RequestMethod::Patch),
-            _ => Err(()),
-        }
-    }
-}
 
 impl ResponseType {
     pub fn new_file(path: &'static str) -> ResponseType {
@@ -81,24 +51,6 @@ impl ResponseType {
                 Err(StatusLine::new(404))
             }
         }
-    }
-}
-
-impl Resource {
-    fn new(path: Cow<'static, str>) -> Self {
-        Resource { path }
-    }
-
-    pub fn borrowed(path: &'static str) -> Self {
-        Resource::new(Cow::Borrowed(path))
-    }
-
-    pub fn owned(path: String) -> Self {
-        Resource::new(Cow::Owned(path))
-    }
-
-    pub fn invalid() -> Self {
-        Resource::borrowed("")
     }
 }
 
