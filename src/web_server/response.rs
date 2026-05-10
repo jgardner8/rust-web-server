@@ -53,8 +53,9 @@ impl Response {
         format!(
             concat!(
                 "{}\n",
-                "Content-Type: text/html; charset=utf-8\n",
                 "Content-Length: {}\n",
+                "Content-Type: text/html; charset=utf-8\n",
+                "Connection: Closed\n",
                 "\n",
                 "{}"
             ),
