@@ -1,4 +1,4 @@
-use std::{convert, str::FromStr};
+use std::{convert, io::{self, prelude::BufRead, BufReader}, net::TcpStream, str::FromStr};
 
 use crate::web_server::{ErrorPage, RequestMethod, RequestPattern, Resource, Response, StatusLine};
 
@@ -87,9 +87,26 @@ impl RequestHandler {
         self.request_pattern_to_response(request_pattern, method, &resource)
     }
 
-    pub fn request_line_to_response(&self, request_line: &str) -> Response {
+    fn request_line_to_response(&self, request_line: &str) -> Response {
+        // Successful and unsuccessful responses are both valid HTTP responses - flatten Result type
         self.request_line_to_response_result(request_line)
             .unwrap_or_else(convert::identity)
+    }
+
+    pub fn request_stream_to_response(&self, request_stream: &TcpStream) -> Result<Response, io::Error> {
+        let mut request_stream = BufReader::new(request_stream).lines();
+
+        let request_line = request_stream.next().unwrap_or(Err(io::Error::from(io::ErrorKind::ConnectionAborted)))?;
+
+        let response = self.request_line_to_response(&request_line);
+        
+        println!(
+            "{} -> {}",
+            request_line,
+            response.status_line.encode_http_str()
+        );
+
+        Ok(response)
     }
 
     fn error_response(

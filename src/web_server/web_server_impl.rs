@@ -1,7 +1,5 @@
-use std::{
-    io::{BufReader, Error, ErrorKind, prelude::*},
-    net::{TcpListener, TcpStream, ToSocketAddrs},
-};
+use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::io::{prelude::Write};
 
 use crate::{
     arc::Arc,
@@ -22,48 +20,31 @@ impl WebServer {
 
         let request_handler = Arc::new(RequestHandler::new(request_patterns, error_pages));
 
-        for stream in listener.incoming() {
-            match stream {
-                Ok(stream) => {
+        for tcp_stream in listener.incoming() {
+            match tcp_stream {
+                Ok(tcp_stream) => {
                     let request_handler = request_handler.clone();
                     thread_pool.execute(move || {
-                        handle_connection(stream, request_handler);
+                        handle_connection(tcp_stream, request_handler);
                     });
                 }
-                Err(e) => {
-                    println!("Client Error: Connection error: {:?}", e);
-                }
+                Err(e) => println!("Client Error: Connection failed: {:?}", e),
             }
         }
     }
 }
 
-fn handle_connection(mut stream: TcpStream, request_handler: Arc<RequestHandler>) {
-    match get_request_line(&stream) {
-        Ok(request_line) => {
-            let response = request_handler.request_line_to_response(&request_line);
-
-            println!(
-                "{} -> {}",
-                request_line,
-                response.status_line.encode_http_str()
-            );
-
-            stream
+fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHandler>) {
+    match request_handler.request_stream_to_response(&tcp_stream) {
+        Ok(response) => {
+            tcp_stream
                 .write_all(response.encode_http_str().as_bytes())
                 .unwrap_or_else(|e| {
-                    println!("Client Error: Failed to write response: {:?}", e);
+                    eprintln!("Error: Failed to write response: {:?}", e);
                 });
         }
         Err(e) => {
-            println!("Client Error: Got no input from request: {:?}", e);
+            println!("Client Error: Failed to receive full request: {:?}", e);
         }
     }
-}
-
-fn get_request_line(stream: &TcpStream) -> Result<String, Error> {
-    let buf_reader = BufReader::new(stream);
-
-    let request_line = buf_reader.lines().next();
-    request_line.unwrap_or(Err(Error::from(ErrorKind::ConnectionAborted)))
 }
