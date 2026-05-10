@@ -6,6 +6,7 @@ pub enum StatusCode {
     MovedPermanently = 301,
     Found = 302,
     BadRequest = 400,
+    Unauthorized = 401,
     Forbidden = 403,
     NotFound = 404,
     MethodNotAllowed = 405,
@@ -34,6 +35,7 @@ impl StatusCode {
             301 => "Moved Permanently",
             302 => "Found",
             400 => "Bad Request",
+            401 => "Unauthorized",
             403 => "Forbidden",
             404 => "Not Found",
             405 => "Method Not Allowed",
@@ -47,7 +49,10 @@ impl StatusCode {
             502 => "Bad Gateway",
             504 => "Gateway Timeout",
             505 => "HTTP Version Not Supported",
-            _ => "",
+            code => {
+                println!("Unknown status code {}", code);
+                ""
+            }
         }
     }
 
@@ -58,10 +63,11 @@ impl StatusCode {
 
 impl Response {
     pub fn new(status_code: StatusCode, body: String) -> Self {
-        Response {
-            status_code,
-            body,
-        }
+        Response { status_code, body }
+    }
+
+    pub fn ok(body: String) -> Self {
+        Response { status_code: StatusCode::Ok, body }
     }
 
     pub fn encode_http_str(&self) -> String {
