@@ -1,20 +1,34 @@
-pub struct StatusLine {
-    pub code: u16,
+#[derive(Copy, Clone, PartialEq)]
+pub enum StatusCode {
+    // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
+    Ok = 200,
+    Created = 201,
+    MovedPermanently = 301,
+    Found = 302,
+    BadRequest = 400,
+    Forbidden = 403,
+    NotFound = 404,
+    MethodNotAllowed = 405,
+    LengthRequired = 411,
+    ContentTooLarge = 413,
+    URITooLong = 414,
+    TooManyRequests = 429,
+    RequestHeaderFieldsTooLarge = 431,
+    InternalServerError = 500,
+    NotImplemented = 501,
+    BadGateway = 502,
+    GatewayTimeout = 504,
+    HttpVersionNotSupported = 505,
 }
 
 pub struct Response {
-    pub status_line: StatusLine,
+    pub status_code: StatusCode,
     body: String,
 }
 
-impl StatusLine {
-    pub fn new(code: u16) -> Self {
-        StatusLine { code }
-    }
-
+impl StatusCode {
     pub fn reason_phrase(&self) -> &'static str {
-        // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
-        match self.code {
+        match *self as u16 {
             200 => "OK",
             201 => "Created",
             301 => "Moved Permanently",
@@ -38,14 +52,14 @@ impl StatusLine {
     }
 
     pub fn encode_http_str(&self) -> String {
-        format!("HTTP/1.1 {} {}", self.code, self.reason_phrase())
+        format!("HTTP/1.1 {} {}", *self as u16, self.reason_phrase())
     }
 }
 
 impl Response {
-    pub fn new(status_code: u16, body: String) -> Self {
+    pub fn new(status_code: StatusCode, body: String) -> Self {
         Response {
-            status_line: StatusLine::new(status_code),
+            status_code,
             body,
         }
     }
@@ -60,20 +74,20 @@ impl Response {
                 "\r\n",
                 "{}"
             ),
-            self.status_line.encode_http_str(),
+            self.status_code.encode_http_str(),
             self.body.len(),
             self.body
         )
     }
 
     pub fn to_log(&self) -> String {
-        self.status_line.encode_http_str()
+        self.status_code.encode_http_str()
     }
 }
 
-impl From<StatusLine> for Response {
-    fn from(status_line: StatusLine) -> Self {
-        let body = String::from(status_line.reason_phrase());
-        Response { status_line, body }
+impl From<StatusCode> for Response {
+    fn from(status_code: StatusCode) -> Self {
+        let body = String::from(status_code.reason_phrase());
+        Response { status_code, body }
     }
 }

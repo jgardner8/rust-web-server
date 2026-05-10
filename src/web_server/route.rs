@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fs};
 
-use crate::web_server::{Request, RequestMethod, Resource, Response, StatusLine};
+use crate::web_server::{Request, RequestMethod, Resource, Response, StatusCode};
 
 pub struct Route {
     method: RequestMethod,
@@ -9,7 +9,7 @@ pub struct Route {
 }
 
 pub struct ErrorRoute {
-    status_code: u16,
+    status_code: StatusCode,
     response_type: ResponseType,
 }
 
@@ -18,7 +18,7 @@ pub enum ResponseType {
     Function(Box<RequestProcessorFn>),
 }
 
-type RequestProcessorFn = dyn Fn(&Request) -> Result<Response, StatusLine> + Send + Sync;
+type RequestProcessorFn = dyn Fn(&Request) -> Result<Response, StatusCode> + Send + Sync;
 
 impl Route {
     fn new(method: RequestMethod, resource: Resource, response_type: ResponseType) -> Self {
@@ -47,7 +47,7 @@ impl Route {
 
     pub fn func<F>(method: RequestMethod, path: &'static str, function: F) -> Self
     where
-        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Route::new(
             method,
@@ -58,7 +58,7 @@ impl Route {
 
     pub fn func_dynamic<F>(method: RequestMethod, path: String, function: F) -> Self
     where
-        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Route::new(
             method,
@@ -75,39 +75,39 @@ impl Route {
         self.method == method && self.resource.path == path_no_query_params
     }
 
-    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
         self.response_type.to_response(request)
     }
 }
 
 impl ErrorRoute {
-    fn new(status_code: u16, response_type: ResponseType) -> Self {
+    fn new(status_code: StatusCode, response_type: ResponseType) -> Self {
         ErrorRoute {
             status_code,
             response_type,
         }
     }
 
-    pub fn file(status_code: u16, file_path: &'static str) -> Self {
+    pub fn file(status_code: StatusCode, file_path: &'static str) -> Self {
         Self::new(status_code, ResponseType::new_file(file_path))
     }
 
-    pub fn file_dynamic(status_code: u16, file_path: String) -> Self {
+    pub fn file_dynamic(status_code: StatusCode, file_path: String) -> Self {
         Self::new(status_code, ResponseType::new_file_dynamic(file_path))
     }
 
-    pub fn function<F>(status_code: u16, function: F) -> Self
+    pub fn function<F>(status_code: StatusCode, function: F) -> Self
     where
-        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Self::new(status_code, ResponseType::new_func(function))
     }
 
-    pub fn matches(&self, status_code: u16) -> bool {
+    pub fn matches(&self, status_code: StatusCode) -> bool {
         self.status_code == status_code
     }
 
-    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
         self.response_type.to_response(request)
     }
 }
@@ -123,24 +123,24 @@ impl ResponseType {
 
     pub fn new_func<F>(function: F) -> ResponseType
     where
-        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         ResponseType::Function(Box::new(function))
     }
 
-    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
         match self {
             ResponseType::File(path) => self.file_response(path),
             ResponseType::Function(f) => f(request),
         }
     }
 
-    fn file_response(&self, path: &str) -> Result<Response, StatusLine> {
+    fn file_response(&self, path: &str) -> Result<Response, StatusCode> {
         match fs::read_to_string(path) {
-            Ok(response_body) => Ok(Response::new(200, response_body)),
+            Ok(response_body) => Ok(Response::new(StatusCode::Ok, response_body)),
             Err(e) => {
                 eprintln!("Error: Cannot read file {}, error: {:?}", path, e);
-                Err(StatusLine::new(404))
+                Err(StatusCode::NotFound)
             }
         }
     }

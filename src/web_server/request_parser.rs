@@ -7,16 +7,16 @@ use std::{
     str::FromStr,
 };
 
-use crate::web_server::{Request, RequestMethod, Resource, StatusLine};
+use crate::web_server::{Request, RequestMethod, Resource, StatusCode};
 
 pub struct RequestParser;
 
 pub enum ParseResult {
     StreamError(io::Error),
-    FailedOnRequestLine(StatusLine),
-    FailedOnHeaders(StatusLine, RequestMethod, Resource),
+    FailedOnRequestLine(StatusCode),
+    FailedOnHeaders(StatusCode, RequestMethod, Resource),
     FailedOnBody(
-        StatusLine,
+        StatusCode,
         RequestMethod,
         Resource,
         BTreeMap<String, String>,
@@ -30,32 +30,32 @@ const MAX_HEADERS_SIZE: u16 = 8 * 1024; // https://stackoverflow.com/questions/6
 const MAX_BODY_SIZE: usize = 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
 
 impl RequestParser {
-    fn parse_request_line(request_line: &str) -> Result<(RequestMethod, Resource), StatusLine> {
+    fn parse_request_line(request_line: &str) -> Result<(RequestMethod, Resource), StatusCode> {
         let elems = request_line.split(" ").collect::<Vec<&str>>();
 
         if elems.len() != 3 {
-            return Err(StatusLine::new(400));
+            return Err(StatusCode::BadRequest);
         }
 
         if elems[2] != "HTTP/1.1" {
-            return Err(StatusLine::new(505));
+            return Err(StatusCode::HttpVersionNotSupported);
         }
 
         let resource = Resource::owned(String::from(elems[1]));
 
-        let method = RequestMethod::from_str(elems[0]).map_err(|()| StatusLine::new(501))?;
+        let method = RequestMethod::from_str(elems[0]).map_err(|()| StatusCode::NotImplemented)?;
 
         Ok((method, resource))
     }
 
-    fn parse_header(header_line: &str) -> Result<Option<(String, String)>, StatusLine> {
+    fn parse_header(header_line: &str) -> Result<Option<(String, String)>, StatusCode> {
         if header_line.len() <= 2 {
             // Matches "\r\n" and "", while being too short for a valid header definition (a:b). Must be at end of headers
             Ok(None)
         } else {
             match header_line.split_once(":") {
                 Some((k, v)) => Ok(Some((String::from(k.trim()), String::from(v.trim())))),
-                None => Err(StatusLine::new(400)),
+                None => Err(StatusCode::BadRequest),
             }
         }
     }
@@ -74,13 +74,13 @@ impl RequestParser {
             .read_line(buf)
         {
             Ok(bytes_read) if bytes_read < MAX_REQUEST_LINE_SIZE.into() => bytes_read,
-            Ok(_) => return ParseResult::FailedOnRequestLine(StatusLine::new(414)),
+            Ok(_) => return ParseResult::FailedOnRequestLine(StatusCode::URITooLong),
             Err(e) => return ParseResult::StreamError(e),
         };
 
         let (method, resource) = match Self::parse_request_line(buf.trim_end()) {
             Ok((method, resource)) => (method, resource),
-            Err(status_line) => return ParseResult::FailedOnRequestLine(status_line),
+            Err(status_code) => return ParseResult::FailedOnRequestLine(status_code),
         };
 
         // Read headers
@@ -93,14 +93,14 @@ impl RequestParser {
                 Err(e) => return ParseResult::StreamError(e),
             };
             if total_bytes_read > MAX_HEADERS_SIZE.into() {
-                return ParseResult::FailedOnHeaders(StatusLine::new(431), method, resource);
+                return ParseResult::FailedOnHeaders(StatusCode::RequestHeaderFieldsTooLarge, method, resource);
             }
 
             match Self::parse_header(buf) {
                 Ok(None) => break,
                 Ok(Some((key, value))) => headers.insert(key, value),
-                Err(status_line) => {
-                    return ParseResult::FailedOnHeaders(status_line, method, resource);
+                Err(status_code) => {
+                    return ParseResult::FailedOnHeaders(status_code, method, resource);
                 }
             };
 
@@ -114,7 +114,7 @@ impl RequestParser {
                 Ok(bytes) if bytes < MAX_BODY_SIZE => bytes,
                 Ok(_) => {
                     return ParseResult::FailedOnBody(
-                        StatusLine::new(413),
+                        StatusCode::ContentTooLarge,
                         method,
                         resource,
                         headers,
@@ -122,7 +122,7 @@ impl RequestParser {
                 }
                 Err(_) => {
                     return ParseResult::FailedOnBody(
-                        StatusLine::new(400),
+                        StatusCode::BadRequest,
                         method,
                         resource,
                         headers,
@@ -131,7 +131,7 @@ impl RequestParser {
             },
             None if reader.buffer().is_empty() => 0,
             None => {
-                return ParseResult::FailedOnBody(StatusLine::new(411), method, resource, headers);
+                return ParseResult::FailedOnBody(StatusCode::LengthRequired, method, resource, headers);
             }
         };
         match reader
@@ -154,14 +154,14 @@ impl ParseResult {
             ParseResult::StreamError(e) => {
                 format!("Client Error: Connection closed prematurely: {:?}\n", e)
             }
-            ParseResult::FailedOnRequestLine(_status_line) => {
+            ParseResult::FailedOnRequestLine(_status_code) => {
                 format!("Client Error: Cannot parse request line")
             }
-            ParseResult::FailedOnHeaders(_status_line, method, resource) => format!(
+            ParseResult::FailedOnHeaders(_status_code, method, resource) => format!(
                 "Client Error: Cannot parse headers - {:?} {}",
                 method, resource.path
             ),
-            ParseResult::FailedOnBody(_status_line, method, resource, _) => format!(
+            ParseResult::FailedOnBody(_status_code, method, resource, _) => format!(
                 "Client Error: Cannot parse body - {:?} {}",
                 method, resource.path
             ),

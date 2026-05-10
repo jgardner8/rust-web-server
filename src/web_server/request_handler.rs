@@ -1,6 +1,6 @@
 use std::convert;
 
-use crate::web_server::{ErrorRoute, Request, Route, Response, StatusLine};
+use crate::web_server::{ErrorRoute, Request, Route, Response, StatusCode};
 
 pub struct RequestHandler {
     routes: Box<[Route]>,
@@ -28,12 +28,12 @@ impl RequestHandler {
             .collect::<Vec<_>>();
 
         if matched_routes_by_path.is_empty() {
-            Err(self.handle_error(StatusLine::new(404), request))
+            Err(self.handle_error(StatusCode::NotFound, request))
         } else {
             matched_routes_by_path
                 .iter()
                 .find(|route| route.matches(request.method, path_no_query_params))
-                .ok_or(self.handle_error(StatusLine::new(405), request))
+                .ok_or(self.handle_error(StatusCode::MethodNotAllowed, request))
                 .copied()
         }
     }
@@ -45,7 +45,7 @@ impl RequestHandler {
     ) -> Result<Response, Response> {
         route
             .to_response(request)
-            .map_err(|status_line| self.handle_error(status_line, request))
+            .map_err(|status_code| self.handle_error(status_code, request))
     }
 
     pub fn handle_request(&self, request: &Request) -> Response {
@@ -54,16 +54,16 @@ impl RequestHandler {
             .unwrap_or_else(convert::identity) // both error and success Responses are valid HTTP Responses, collapse both sides of Result<>
     }
 
-    pub fn handle_error(&self, status_line: StatusLine, request: &Request) -> Response {
+    pub fn handle_error(&self, status_code: StatusCode, request: &Request) -> Response {
         match self
             .error_routes
             .iter()
-            .find(|error_route| error_route.matches(status_line.code))
+            .find(|error_route| error_route.matches(status_code))
         {
             Some(error_route) => error_route
                 .to_response(request)
                 .unwrap_or_else(Response::from),
-            None => Response::from(status_line),
+            None => Response::from(status_code),
         }
     }
 }

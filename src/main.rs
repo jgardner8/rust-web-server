@@ -1,8 +1,8 @@
 use http_server::web_server::{
-    ErrorRoute, Request, RequestMethod::Get, Route, Response, StatusLine, WebServer,
+    ErrorRoute, Request, RequestMethod::Get, Route, Response, StatusCode, WebServer,
 };
 
-fn route_query_params(request: &Request) -> Result<Response, StatusLine> {
+fn route_query_params(request: &Request) -> Result<Response, StatusCode> {
     let elems = request.resource.path.split("?").collect::<Vec<&str>>();
 
     let body = if elems.len() == 1 {
@@ -11,12 +11,12 @@ fn route_query_params(request: &Request) -> Result<Response, StatusLine> {
         format!("Called {} with vars \"{}\"", elems[0], elems[1])
     };
 
-    Ok(Response::new(200, body))
+    Ok(Response::new(StatusCode::Ok, body))
 }
 
-fn route_get_user(request: &Request) -> Result<Response, StatusLine> {
+fn route_get_user(request: &Request) -> Result<Response, StatusCode> {
     Ok(Response::new(
-        200,
+        StatusCode::Ok,
         String::from(request.resource.path.clone()),
     ))
 }
@@ -31,6 +31,6 @@ fn main() {
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/{}", route_get_user),
         ]),
-        Box::new([ErrorRoute::file(404, "html/404.html")]),
+        Box::new([ErrorRoute::file(StatusCode::NotFound, "html/404_not_found.html")]),
     );
 }

@@ -70,8 +70,8 @@ fn handle_request_parse_result(
 ) -> Option<Response> {
     match request_parse_result {
         ParseResult::StreamError(_) => None,
-        ParseResult::FailedOnRequestLine(status_line) => Some(request_handler.handle_error(
-            status_line,
+        ParseResult::FailedOnRequestLine(status_code) => Some(request_handler.handle_error(
+            status_code,
             &Request::new(
                 RequestMethod::Unknown,
                 Resource::invalid(),
@@ -79,15 +79,15 @@ fn handle_request_parse_result(
                 String::new(),
             ),
         )),
-        ParseResult::FailedOnHeaders(status_line, method, resource) => {
+        ParseResult::FailedOnHeaders(status_code, method, resource) => {
             Some(request_handler.handle_error(
-                status_line,
+                status_code,
                 &Request::new(method, resource, BTreeMap::new(), String::new()),
             ))
         }
-        ParseResult::FailedOnBody(status_line, method, resource, headers) => {
+        ParseResult::FailedOnBody(status_code, method, resource, headers) => {
             Some(request_handler.handle_error(
-                status_line,
+                status_code,
                 &Request::new(method, resource, headers, String::new()),
             ))
         }
