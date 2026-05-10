@@ -2,10 +2,10 @@ use std::{borrow::Cow, collections::BTreeMap, str::FromStr};
 
 #[derive(Debug)]
 pub struct Request {
-    method: RequestMethod,
-    resource: Resource,
-    headers: BTreeMap<String, String>,
-    body: String,
+    pub method: RequestMethod,
+    pub resource: Resource,
+    pub headers: BTreeMap<String, String>,
+    pub body: String,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]

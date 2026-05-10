@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fs};
 
-use crate::web_server::{RequestMethod, Resource, Response, StatusLine};
+use crate::web_server::{Request, RequestMethod, Resource, Response, StatusLine};
 
 pub enum ResponseType {
     File(Cow<'static, str>),
@@ -13,8 +13,7 @@ pub struct RequestPattern {
     response_type: ResponseType,
 }
 
-type RequestProcessorFn =
-    dyn Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync;
+type RequestProcessorFn = dyn Fn(&Request) -> Result<Response, StatusLine> + Send + Sync;
 
 impl ResponseType {
     pub fn new_file(path: &'static str) -> ResponseType {
@@ -27,19 +26,15 @@ impl ResponseType {
 
     pub fn new_func<F>(function: F) -> ResponseType
     where
-        F: Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
     {
         ResponseType::Function(Box::new(function))
     }
 
-    pub fn to_response(
-        &self,
-        method: RequestMethod,
-        resource: &Resource,
-    ) -> Result<Response, StatusLine> {
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
         match self {
             ResponseType::File(path) => self.file_response(path),
-            ResponseType::Function(f) => f(method, resource),
+            ResponseType::Function(f) => f(request),
         }
     }
 
@@ -81,7 +76,7 @@ impl RequestPattern {
 
     pub fn func<F>(method: RequestMethod, path: &'static str, function: F) -> Self
     where
-        F: Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
     {
         RequestPattern::new(
             method,
@@ -92,7 +87,7 @@ impl RequestPattern {
 
     pub fn function_dynamic<F>(method: RequestMethod, path: String, function: F) -> Self
     where
-        F: Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
     {
         RequestPattern::new(
             method,
@@ -109,11 +104,7 @@ impl RequestPattern {
         self.method == method && self.resource.path == path_no_query_params
     }
 
-    pub fn to_response(
-        &self,
-        method: RequestMethod,
-        resource: &Resource,
-    ) -> Result<Response, StatusLine> {
-        self.response_type.to_response(method, resource)
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
+        self.response_type.to_response(request)
     }
 }

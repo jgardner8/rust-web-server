@@ -1,6 +1,4 @@
-use crate::web_server::{
-    RequestMethod, Resource, Response, StatusLine, request_pattern::ResponseType,
-};
+use crate::web_server::{Request, Response, StatusLine, request_pattern::ResponseType};
 
 pub struct ErrorPage {
     status_code: u16,
@@ -25,7 +23,7 @@ impl ErrorPage {
 
     pub fn function<F>(status_code: u16, function: F) -> Self
     where
-        F: Fn(RequestMethod, &Resource) -> Result<Response, StatusLine> + Send + Sync + 'static,
+        F: Fn(&Request) -> Result<Response, StatusLine> + Send + Sync + 'static,
     {
         Self::new(status_code, ResponseType::new_func(function))
     }
@@ -34,11 +32,7 @@ impl ErrorPage {
         self.status_code == status_code
     }
 
-    pub fn to_response(
-        &self,
-        method: RequestMethod,
-        resource: &Resource,
-    ) -> Result<Response, StatusLine> {
-        self.response_type.to_response(method, resource)
+    pub fn to_response(&self, request: &Request) -> Result<Response, StatusLine> {
+        self.response_type.to_response(request)
     }
 }
