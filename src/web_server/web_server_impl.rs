@@ -8,7 +8,7 @@ use crate::web_server::{Request, RequestMethod, RequestParser, Resource, Respons
 use crate::{
     arc::Arc,
     thread_pool::ThreadPool,
-    web_server::{ErrorPage, RequestPattern, request_handler::RequestHandler},
+    web_server::{ErrorRoute, Route, request_handler::RequestHandler},
 };
 
 pub struct WebServer;
@@ -19,13 +19,13 @@ const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 impl WebServer {
     pub fn bind_and_listen_forever<A: ToSocketAddrs>(
         address: A,
-        request_patterns: Box<[RequestPattern]>,
-        error_pages: Box<[ErrorPage]>,
+        routes: Box<[Route]>,
+        error_routes: Box<[ErrorRoute]>,
     ) {
         let thread_pool = ThreadPool::new(4);
         let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
 
-        let request_handler = Arc::new(RequestHandler::new(request_patterns, error_pages));
+        let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
 
         for tcp_stream in listener.incoming() {
             match tcp_stream {
@@ -70,7 +70,7 @@ fn handle_request_parse_result(
 ) -> Option<Response> {
     match request_parse_result {
         ParseResult::StreamError(_) => None,
-        ParseResult::FailedOnRequestLine(status_line) => Some(request_handler.error_response(
+        ParseResult::FailedOnRequestLine(status_line) => Some(request_handler.handle_error(
             status_line,
             &Request::new(
                 RequestMethod::Unknown,
@@ -80,13 +80,13 @@ fn handle_request_parse_result(
             ),
         )),
         ParseResult::FailedOnHeaders(status_line, method, resource) => {
-            Some(request_handler.error_response(
+            Some(request_handler.handle_error(
                 status_line,
                 &Request::new(method, resource, BTreeMap::new(), String::new()),
             ))
         }
         ParseResult::FailedOnBody(status_line, method, resource, headers) => {
-            Some(request_handler.error_response(
+            Some(request_handler.handle_error(
                 status_line,
                 &Request::new(method, resource, headers, String::new()),
             ))

@@ -1,17 +1,12 @@
-mod error_page;
 mod request;
 mod request_handler;
 mod request_parser;
-mod request_pattern;
 mod response;
+mod route;
 mod web_server_impl;
 
-pub use error_page::ErrorPage;
-pub use request::Request;
-pub use request::RequestMethod;
-pub use request::Resource;
+pub use request::{Request, RequestMethod, Resource};
 pub use request_parser::RequestParser;
-pub use request_pattern::RequestPattern;
-pub use response::Response;
-pub use response::StatusLine;
+pub use response::{Response, StatusLine};
+pub use route::{ErrorRoute, Route};
 pub use web_server_impl::WebServer;

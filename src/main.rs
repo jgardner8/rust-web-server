@@ -1,5 +1,5 @@
 use http_server::web_server::{
-    ErrorPage, Request, RequestMethod::Get, RequestPattern, Response, StatusLine, WebServer,
+    ErrorRoute, Request, RequestMethod::Get, Route, Response, StatusLine, WebServer,
 };
 
 fn route_query_params(request: &Request) -> Result<Response, StatusLine> {
@@ -25,12 +25,12 @@ fn main() {
     WebServer::bind_and_listen_forever(
         "127.0.0.1:8080",
         Box::new([
-            RequestPattern::file(Get, "/", "html/index.html"),
-            RequestPattern::file(Get, "/index.html", "html/index.html"),
-            RequestPattern::file(Get, "/other.html", "html/other.html"),
-            RequestPattern::func(Get, "/query_params", route_query_params),
-            RequestPattern::func(Get, "/user/{}", route_get_user),
+            Route::file(Get, "/", "html/index.html"),
+            Route::file(Get, "/index.html", "html/index.html"),
+            Route::file(Get, "/other.html", "html/other.html"),
+            Route::func(Get, "/query_params", route_query_params),
+            Route::func(Get, "/user/{}", route_get_user),
         ]),
-        Box::new([ErrorPage::file(404, "html/404.html")]),
+        Box::new([ErrorRoute::file(404, "html/404.html")]),
     );
 }

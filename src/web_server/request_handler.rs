@@ -1,67 +1,66 @@
 use std::convert;
 
-use crate::web_server::{ErrorPage, Request, RequestPattern, Response, StatusLine};
+use crate::web_server::{ErrorRoute, Request, Route, Response, StatusLine};
 
 pub struct RequestHandler {
-    request_patterns: Box<[RequestPattern]>,
-    error_pages: Box<[ErrorPage]>,
+    routes: Box<[Route]>,
+    error_routes: Box<[ErrorRoute]>,
 }
 
 impl RequestHandler {
-    pub fn new(request_patterns: Box<[RequestPattern]>, error_pages: Box<[ErrorPage]>) -> Self {
+    pub fn new(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>) -> Self {
         RequestHandler {
-            request_patterns,
-            error_pages,
+            routes,
+            error_routes,
         }
     }
 
-    fn find_matching_request_pattern(
+    fn find_matching_route(
         &self,
         request: &Request,
-    ) -> Result<&RequestPattern, Response> {
+    ) -> Result<&Route, Response> {
         let path_no_query_params = request.resource.path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
 
-        let matched_patterns_by_path = self
-            .request_patterns
+        let matched_routes_by_path = self
+            .routes
             .iter()
-            .filter(|pattern| pattern.matches_path(path_no_query_params))
+            .filter(|route| route.matches_path(path_no_query_params))
             .collect::<Vec<_>>();
 
-        if matched_patterns_by_path.is_empty() {
-            Err(self.error_response(StatusLine::new(404), request))
+        if matched_routes_by_path.is_empty() {
+            Err(self.handle_error(StatusLine::new(404), request))
         } else {
-            matched_patterns_by_path
+            matched_routes_by_path
                 .iter()
-                .find(|pattern| pattern.matches(request.method, path_no_query_params))
-                .ok_or(self.error_response(StatusLine::new(405), request))
+                .find(|route| route.matches(request.method, path_no_query_params))
+                .ok_or(self.handle_error(StatusLine::new(405), request))
                 .copied()
         }
     }
 
-    fn request_pattern_to_response(
+    fn route_to_response(
         &self,
-        request_pattern: &RequestPattern,
+        route: &Route,
         request: &Request,
     ) -> Result<Response, Response> {
-        request_pattern
+        route
             .to_response(request)
-            .map_err(|status_line| self.error_response(status_line, request))
+            .map_err(|status_line| self.handle_error(status_line, request))
     }
 
     pub fn handle_request(&self, request: &Request) -> Response {
-        let maybe_request_pattern = self.find_matching_request_pattern(request);
-        let maybe_response =
-            maybe_request_pattern.and_then(|pat| self.request_pattern_to_response(pat, request));
-        maybe_response.unwrap_or_else(convert::identity) // both error and success Responses are valid HTTP Responses, collapse both sides of Result<>
+        self.find_matching_route(request)
+            .and_then(|route| self.route_to_response(route, request))
+            .unwrap_or_else(convert::identity) // both error and success Responses are valid HTTP Responses, collapse both sides of Result<>
     }
 
-    pub fn error_response(&self, status_line: StatusLine, request: &Request) -> Response {
+    pub fn handle_error(&self, status_line: StatusLine, request: &Request) -> Response {
         match self
-            .error_pages
+            .error_routes
             .iter()
-            .find(|error_page| error_page.matches(status_line.code))
+            .find(|error_route| error_route.matches(status_line.code))
         {
-            Some(error_page) => error_page
+            Some(error_route) => error_route
                 .to_response(request)
                 .unwrap_or_else(Response::from),
             None => Response::from(status_line),
