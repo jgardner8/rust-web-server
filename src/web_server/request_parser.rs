@@ -113,26 +113,19 @@ impl RequestParser {
 
         // Read body
         buf.clear();
-        let body_size_bytes = match headers.get("Content-Length") {
-            Some(bytes_str) => match bytes_str.parse::<usize>() {
-                Ok(bytes) if bytes < MAX_BODY_SIZE => bytes,
-                Ok(_) => {
-                    return ParseResult::FailedOnBody(
-                        StatusCode::ContentTooLarge,
-                        method,
-                        resource,
-                        headers,
-                    );
-                }
-                Err(_) => {
-                    return ParseResult::FailedOnBody(
-                        StatusCode::BadRequest,
-                        method,
-                        resource,
-                        headers,
-                    );
-                }
-            },
+        let body_size_bytes = match headers
+            .get("Content-Length")
+            .and_then(|v| v.parse::<usize>().ok())
+        {
+            Some(bytes) if bytes < MAX_BODY_SIZE => bytes,
+            Some(_) => {
+                return ParseResult::FailedOnBody(
+                    StatusCode::ContentTooLarge,
+                    method,
+                    resource,
+                    headers,
+                );
+            }
             None if reader.buffer().is_empty() => 0,
             None => {
                 return ParseResult::FailedOnBody(
@@ -146,7 +139,7 @@ impl RequestParser {
         match reader
             .by_ref()
             .take(body_size_bytes.try_into().unwrap())
-            .read_line(buf)
+            .read_to_string(buf)
         {
             Ok(_) => (),
             Err(e) => return ParseResult::StreamError(e),
@@ -163,14 +156,14 @@ impl ParseResult {
             ParseResult::StreamError(e) => {
                 format!("Client Error: Connection closed prematurely: {:?}\n", e)
             }
-            ParseResult::FailedOnRequestLine(_status_code) => {
+            ParseResult::FailedOnRequestLine(_) => {
                 "Client Error: Cannot parse request line".to_string()
             }
-            ParseResult::FailedOnHeaders(_status_code, method, resource) => format!(
+            ParseResult::FailedOnHeaders(_, method, resource) => format!(
                 "Client Error: Cannot parse headers - {:?} {}",
                 method, resource.path
             ),
-            ParseResult::FailedOnBody(_status_code, method, resource, _) => format!(
+            ParseResult::FailedOnBody(_, method, resource, _) => format!(
                 "Client Error: Cannot parse body - {:?} {}",
                 method, resource.path
             ),
