@@ -6,10 +6,7 @@ use std::{
 use crate::{
     arc::Arc,
     thread_pool::ThreadPool,
-    web_server::{
-        RequestPattern,
-        request_handler::{ErrorPage, RequestHandler},
-    },
+    web_server::{ErrorPage, RequestPattern, request_handler::RequestHandler},
 };
 
 pub struct WebServer;

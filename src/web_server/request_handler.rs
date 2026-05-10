@@ -61,7 +61,7 @@ impl RequestHandler {
         {
             Some(error_page) => error_page
                 .to_response(method, resource)
-                .unwrap_or_else(|error_status_line| Response::from(error_status_line)),
+                .unwrap_or_else(Response::from),
             None => Response::from(status_line),
         }
     }
