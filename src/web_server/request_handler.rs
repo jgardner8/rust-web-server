@@ -94,18 +94,56 @@ impl RequestHandler {
     }
 
     pub fn request_stream_to_response(&self, request_stream: &TcpStream) -> io::Result<Response> {
+        const ASSUMED_REQUEST_SIZE: usize = 128; // around basic GET request size from testing
         const MAX_REQUEST_LINE_SIZE: u16 = 2 * 1024; // https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
+        const MAX_HEADERS_SIZE: u16 = 8 * 1024; // https://stackoverflow.com/questions/686217/maximum-on-http-header-values
+        const MAX_BODY_SIZE: u32 = 1 * 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
 
-        let reader = BufReader::new(request_stream);
+        let mut reader = BufReader::new(request_stream);
 
-        let buf = &mut String::new();
-        let bytes_read = reader.take(MAX_REQUEST_LINE_SIZE.into()).read_line(buf)?;
-        if bytes_read == MAX_REQUEST_LINE_SIZE.into() {
+        let buf = &mut String::with_capacity(ASSUMED_REQUEST_SIZE);
+        let bytes_read = reader.by_ref().take(MAX_REQUEST_LINE_SIZE.into()).read_line(buf)?;
+        if bytes_read >= MAX_REQUEST_LINE_SIZE.into() {
             return Ok(self.error_response(StatusLine::new(414), RequestMethod::Unknown, &Resource::invalid()))
         }
 
         let response = self.request_line_to_response(&buf.trim_end());
-        
+
+        buf.clear();
+        let mut bytes_read: usize = 0;
+        let mut headers = Vec::new();
+        loop {
+            bytes_read += reader.by_ref().take(MAX_HEADERS_SIZE.into()).read_line(buf)?;
+            if bytes_read >= MAX_HEADERS_SIZE.into() {
+                return Ok(self.error_response(StatusLine::new(431), RequestMethod::Unknown, &Resource::invalid()))
+            }
+            if buf.len() <= 2 { // matches "\r\n" and "", while being too short for a valid header definition (a=b)
+                break
+            }
+
+            headers.push(buf.clone()); // TODO: trim_end
+            buf.clear();
+        }
+
+        // TODO: look at content length, responding with 411 if not provided
+        if !reader.buffer().is_empty() {
+            buf.clear();
+            bytes_read = 0;
+            let mut prev_bytes_read = 0;
+            loop {
+                bytes_read += reader.by_ref().take(MAX_BODY_SIZE.into()).read_line(buf)?;
+                println!("read {}", bytes_read);
+                if bytes_read >= MAX_BODY_SIZE.try_into().unwrap() {
+                    return Ok(self.error_response(StatusLine::new(413), RequestMethod::Unknown, &Resource::invalid()))
+                }
+
+                if bytes_read - prev_bytes_read <= 2 { // matches "\r\n" and ""
+                    break;
+                }
+                prev_bytes_read = bytes_read;
+            }
+        }        
+
         println!(
             "{} -> {}",
             buf,
