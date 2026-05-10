@@ -20,14 +20,14 @@ impl WebServer {
         let thread_pool = ThreadPool::new(4);
         let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
 
-        let request_matcher = Arc::new(RequestHandler::new(request_patterns, error_pages));
+        let request_handler = Arc::new(RequestHandler::new(request_patterns, error_pages));
 
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    let request_matcher = request_matcher.clone();
+                    let request_handler = request_handler.clone();
                     thread_pool.execute(move || {
-                        handle_connection(stream, request_matcher);
+                        handle_connection(stream, request_handler);
                     });
                 }
                 Err(e) => {
@@ -38,10 +38,10 @@ impl WebServer {
     }
 }
 
-fn handle_connection(mut stream: TcpStream, request_matcher: Arc<RequestHandler>) {
+fn handle_connection(mut stream: TcpStream, request_handler: Arc<RequestHandler>) {
     match get_request_line(&stream) {
         Ok(request_line) => {
-            let response = request_matcher.request_line_to_response(&request_line);
+            let response = request_handler.request_line_to_response(&request_line);
 
             println!(
                 "{} -> {}",
