@@ -97,7 +97,7 @@ impl RequestHandler {
         const ASSUMED_REQUEST_SIZE: usize = 128; // around basic GET request size from testing
         const MAX_REQUEST_LINE_SIZE: u16 = 2 * 1024; // https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
         const MAX_HEADERS_SIZE: u16 = 8 * 1024; // https://stackoverflow.com/questions/686217/maximum-on-http-header-values
-        const MAX_BODY_SIZE: u32 = 1 * 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
+        const MAX_BODY_SIZE: usize = 1 * 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
 
         let mut reader = BufReader::new(request_stream);
 
@@ -124,7 +124,7 @@ impl RequestHandler {
             if bytes_read >= MAX_HEADERS_SIZE.into() {
                 return Ok(self.error_response(StatusLine::new(431), RequestMethod::Unknown, &Resource::invalid()))
             }
-            if buf.len() <= 2 { // matches "\r\n" and "", while being too short for a valid header definition (a=b)
+            if buf.len() <= 2 { // matches "\r\n" and "", while being too short for a valid header definition (a:b)
                 break
             }
 
@@ -136,24 +136,18 @@ impl RequestHandler {
             buf.clear();
         }
 
-        // TODO: look at content length, responding with 411 if not provided
         buf.clear();
-        if !reader.buffer().is_empty() {
-            bytes_read = 0;
-            let mut prev_bytes_read = 0;
-            loop {
-                bytes_read += reader.by_ref().take(MAX_BODY_SIZE.into()).read_line(buf)?;
-                println!("read {}", bytes_read);
-                if bytes_read >= MAX_BODY_SIZE.try_into().unwrap() {
-                    return Ok(self.error_response(StatusLine::new(413), RequestMethod::Unknown, &Resource::invalid()))
-                }
-
-                if bytes_read - prev_bytes_read <= 2 { // matches "\r\n" and ""
-                    break;
-                }
-                prev_bytes_read = bytes_read;
+        let body_size_bytes = match headers.get("Content-Length") {
+            Some(bytes_str) => match bytes_str.parse::<usize>() {
+                Ok(bytes) if bytes <= MAX_BODY_SIZE => bytes,
+                Ok(_) => return Ok(self.error_response(StatusLine::new(413), RequestMethod::Unknown, &Resource::invalid())),
+                Err(_) => return Ok(self.error_response(StatusLine::new(400), RequestMethod::Unknown, &Resource::invalid()))
             }
-        }        
+            None if reader.buffer().is_empty() => 0,
+            None => return Ok(self.error_response(StatusLine::new(411), RequestMethod::Unknown, &Resource::invalid()))
+        };
+    
+        reader.by_ref().take(body_size_bytes.try_into().unwrap()).read_line(buf)?;
 
         let request = Request::new(RequestMethod::Unknown, Resource::invalid(), headers, buf.clone());
 
