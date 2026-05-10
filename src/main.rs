@@ -13,7 +13,7 @@ fn route_dynamic(_method: RequestMethod, resource: &Resource) -> Result<Response
         format!("Called {} with vars \"{}\"", elems[0], elems[1])
     };
 
-    Ok(Response::new(StatusLine::new(200), body))
+    Ok(Response::new(200, body))
 }
 
 fn main() {
@@ -23,7 +23,7 @@ fn main() {
             RequestPattern::file(Get, "/", "html/index.html"),
             RequestPattern::file(Get, "/index.html", "html/index.html"),
             RequestPattern::file(Get, "/other.html", "html/other.html"),
-            RequestPattern::function(Get, "/dynamic", route_dynamic),
+            RequestPattern::func(Get, "/dynamic", route_dynamic),
         ]),
         Box::new([ErrorPage::file(404, "html/404.html")]),
     );
