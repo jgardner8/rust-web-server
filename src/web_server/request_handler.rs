@@ -40,11 +40,7 @@ impl RequestHandler {
         let resource = Resource::owned(String::from(elems[1]));
 
         let method = RequestMethod::from_str(elems[0]).map_err(|()| {
-            self.error_response(
-                StatusLine::new(501),
-                RequestMethod::Unknown,
-                &resource,
-            )
+            self.error_response(StatusLine::new(501), RequestMethod::Unknown, &resource)
         })?;
 
         Ok((method, resource))
@@ -56,12 +52,22 @@ impl RequestHandler {
         resource: &Resource,
     ) -> Result<&RequestPattern, Response> {
         let path_no_query_params = resource.path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
-        let matched_pattern = self
+
+        let matched_patterns_by_path = self
             .request_patterns
             .iter()
-            .find(|pattern| pattern.matches(method, path_no_query_params));
+            .filter(|pattern| pattern.matches_path(path_no_query_params))
+            .collect::<Vec<_>>();
 
-        matched_pattern.ok_or(self.error_response(StatusLine::new(404), method, &resource))
+        if matched_patterns_by_path.is_empty() {
+            Err(self.error_response(StatusLine::new(404), method, &resource))
+        } else {
+            matched_patterns_by_path
+                .iter()
+                .find(|pattern| pattern.matches(method, path_no_query_params))
+                .ok_or(self.error_response(StatusLine::new(405), method, &resource))
+                .copied()
+        }
     }
 
     fn request_pattern_to_response(
@@ -82,7 +88,8 @@ impl RequestHandler {
     }
 
     pub fn request_line_to_response(&self, request_line: &str) -> Response {
-        self.request_line_to_response_result(request_line).unwrap_or_else(convert::identity)
+        self.request_line_to_response_result(request_line)
+            .unwrap_or_else(convert::identity)
     }
 
     fn error_response(

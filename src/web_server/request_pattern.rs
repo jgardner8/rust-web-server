@@ -145,6 +145,10 @@ impl RequestPattern {
         )
     }
 
+    pub fn matches_path(&self, path_no_query_params: &str) -> bool {
+        self.resource.path == path_no_query_params
+    }
+
     pub fn matches(&self, method: RequestMethod, path_no_query_params: &str) -> bool {
         self.method == method && self.resource.path == path_no_query_params
     }
