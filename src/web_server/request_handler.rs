@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{convert, str::FromStr};
 
 use crate::web_server::{ErrorPage, RequestMethod, RequestPattern, Resource, Response, StatusLine};
 
@@ -15,37 +15,74 @@ impl RequestHandler {
         }
     }
 
-    pub fn request_line_to_response(&self, request_line: &str) -> Response {
+    fn parse_request_line(
+        &self,
+        request_line: &str,
+    ) -> Result<(RequestMethod, Resource), Response> {
         let elems = request_line.split(" ").collect::<Vec<&str>>();
 
-        match elems.as_slice() {
-            [method, path, "HTTP/1.1"] if RequestMethod::from_str(method).is_ok() => {
-                let method = RequestMethod::from_str(method).unwrap();
-
-                let path_no_query_params = path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
-                let matched_pattern = self
-                    .request_patterns
-                    .iter()
-                    .find(|pattern| pattern.matches(method, path_no_query_params));
-
-                let resource = Resource::owned(String::from(*path));
-                match matched_pattern {
-                    Some(pattern) => {
-                        pattern
-                            .to_response(method, &resource)
-                            .unwrap_or_else(|error_status_line| {
-                                self.error_response(error_status_line, method, &resource)
-                            })
-                    }
-                    None => self.error_response(StatusLine::new(404), method, &resource),
-                }
-            }
-            _ => self.error_response(
+        if elems.len() != 3 {
+            return Err(self.error_response(
                 StatusLine::new(400),
                 RequestMethod::Unknown,
                 &Resource::borrowed(""),
-            ),
+            ));
         }
+
+        if elems[2] != "HTTP/1.1" {
+            return Err(self.error_response(
+                StatusLine::new(505),
+                RequestMethod::Unknown,
+                &Resource::borrowed(""),
+            ));
+        }
+
+        let resource = Resource::owned(String::from(elems[1]));
+
+        let method = RequestMethod::from_str(elems[0]).map_err(|()| {
+            self.error_response(
+                StatusLine::new(501),
+                RequestMethod::Unknown,
+                &resource,
+            )
+        })?;
+
+        Ok((method, resource))
+    }
+
+    fn find_request_pattern(
+        &self,
+        method: RequestMethod,
+        resource: &Resource,
+    ) -> Result<&RequestPattern, Response> {
+        let path_no_query_params = resource.path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
+        let matched_pattern = self
+            .request_patterns
+            .iter()
+            .find(|pattern| pattern.matches(method, path_no_query_params));
+
+        matched_pattern.ok_or(self.error_response(StatusLine::new(404), method, &resource))
+    }
+
+    fn request_pattern_to_response(
+        &self,
+        request_pattern: &RequestPattern,
+        method: RequestMethod,
+        resource: &Resource,
+    ) -> Result<Response, Response> {
+        request_pattern
+            .to_response(method, &resource)
+            .map_err(|status_line| self.error_response(status_line, method, &resource))
+    }
+
+    fn request_line_to_response_result(&self, request_line: &str) -> Result<Response, Response> {
+        let (method, resource) = self.parse_request_line(request_line)?;
+        let request_pattern = self.find_request_pattern(method, &resource)?;
+        self.request_pattern_to_response(request_pattern, method, &resource)
+    }
+
+    pub fn request_line_to_response(&self, request_line: &str) -> Response {
+        self.request_line_to_response_result(request_line).unwrap_or_else(convert::identity)
     }
 
     fn error_response(
