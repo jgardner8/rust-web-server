@@ -96,6 +96,10 @@ impl Resource {
     pub fn owned(path: String) -> Self {
         Resource::new(Cow::Owned(path))
     }
+
+    pub fn invalid() -> Self {
+        Resource::borrowed("")
+    }
 }
 
 impl RequestPattern {

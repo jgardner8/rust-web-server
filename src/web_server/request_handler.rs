@@ -1,4 +1,4 @@
-use std::{convert, io::{self, prelude::BufRead, BufReader}, net::TcpStream, str::FromStr};
+use std::{convert, io::{self, prelude::{Read, BufRead}, BufReader}, net::TcpStream, str::FromStr};
 
 use crate::web_server::{ErrorPage, RequestMethod, RequestPattern, Resource, Response, StatusLine};
 
@@ -25,7 +25,7 @@ impl RequestHandler {
             return Err(self.error_response(
                 StatusLine::new(400),
                 RequestMethod::Unknown,
-                &Resource::borrowed(""),
+                &Resource::invalid(),
             ));
         }
 
@@ -33,7 +33,7 @@ impl RequestHandler {
             return Err(self.error_response(
                 StatusLine::new(505),
                 RequestMethod::Unknown,
-                &Resource::borrowed(""),
+                &Resource::invalid(),
             ));
         }
 
@@ -93,16 +93,22 @@ impl RequestHandler {
             .unwrap_or_else(convert::identity)
     }
 
-    pub fn request_stream_to_response(&self, request_stream: &TcpStream) -> Result<Response, io::Error> {
-        let mut request_stream = BufReader::new(request_stream).lines();
+    pub fn request_stream_to_response(&self, request_stream: &TcpStream) -> io::Result<Response> {
+        const MAX_REQUEST_LINE_SIZE: u16 = 2 * 1024; // https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
 
-        let request_line = request_stream.next().unwrap_or(Err(io::Error::from(io::ErrorKind::ConnectionAborted)))?;
+        let reader = BufReader::new(request_stream);
 
-        let response = self.request_line_to_response(&request_line);
+        let buf = &mut String::new();
+        let bytes_read = reader.take(MAX_REQUEST_LINE_SIZE.into()).read_line(buf)?;
+        if bytes_read == MAX_REQUEST_LINE_SIZE.into() {
+            return Ok(self.error_response(StatusLine::new(414), RequestMethod::Unknown, &Resource::invalid()))
+        }
+
+        let response = self.request_line_to_response(&buf.trim_end());
         
         println!(
             "{} -> {}",
-            request_line,
+            buf,
             response.status_line.encode_http_str()
         );
 
