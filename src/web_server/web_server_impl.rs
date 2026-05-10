@@ -34,7 +34,7 @@ impl WebServer {
                     });
                 }
                 Err(e) => {
-                    println!("Connection error: {:?}", e);
+                    println!("Client Error: Connection error: {:?}", e);
                 }
             }
         }
@@ -44,18 +44,22 @@ impl WebServer {
 fn handle_connection(mut stream: TcpStream, request_matcher: Arc<RequestHandler>) {
     match get_request_line(&stream) {
         Ok(request_line) => {
-            let response = request_matcher.map_to_response(&request_line);
+            let response = request_matcher.request_line_to_response(&request_line);
 
-            println!("{} -> {}", request_line, response.status_code);
+            println!(
+                "{} -> {}",
+                request_line,
+                response.status_line.encode_http_str()
+            );
 
             stream
                 .write_all(response.encode_http_str().as_bytes())
                 .unwrap_or_else(|e| {
-                    println!("Failed to write response: {:?}", e);
+                    println!("Client Error: Failed to write response: {:?}", e);
                 });
         }
         Err(e) => {
-            println!("Got no input from request: {:?}", e);
+            println!("Client Error: Got no input from request: {:?}", e);
         }
     }
 }
