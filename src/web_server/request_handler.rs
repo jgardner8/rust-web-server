@@ -60,12 +60,12 @@ impl RequestHandler {
             .collect::<Vec<_>>();
 
         if matched_patterns_by_path.is_empty() {
-            Err(self.error_response(StatusLine::new(404), method, &resource))
+            Err(self.error_response(StatusLine::new(404), method, resource))
         } else {
             matched_patterns_by_path
                 .iter()
                 .find(|pattern| pattern.matches(method, path_no_query_params))
-                .ok_or(self.error_response(StatusLine::new(405), method, &resource))
+                .ok_or(self.error_response(StatusLine::new(405), method, resource))
                 .copied()
         }
     }
@@ -77,8 +77,8 @@ impl RequestHandler {
         resource: &Resource,
     ) -> Result<Response, Response> {
         request_pattern
-            .to_response(method, &resource)
-            .map_err(|status_line| self.error_response(status_line, method, &resource))
+            .to_response(method, resource)
+            .map_err(|status_line| self.error_response(status_line, method, resource))
     }
 
     fn request_line_to_response_result(&self, request_line: &str) -> Result<Response, Response> {
