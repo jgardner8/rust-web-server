@@ -93,7 +93,11 @@ impl RequestParser {
                 Err(e) => return ParseResult::StreamError(e),
             };
             if total_bytes_read > MAX_HEADERS_SIZE.into() {
-                return ParseResult::FailedOnHeaders(StatusCode::RequestHeaderFieldsTooLarge, method, resource);
+                return ParseResult::FailedOnHeaders(
+                    StatusCode::RequestHeaderFieldsTooLarge,
+                    method,
+                    resource,
+                );
             }
 
             match Self::parse_header(buf) {
@@ -131,7 +135,12 @@ impl RequestParser {
             },
             None if reader.buffer().is_empty() => 0,
             None => {
-                return ParseResult::FailedOnBody(StatusCode::LengthRequired, method, resource, headers);
+                return ParseResult::FailedOnBody(
+                    StatusCode::LengthRequired,
+                    method,
+                    resource,
+                    headers,
+                );
             }
         };
         match reader
@@ -155,7 +164,7 @@ impl ParseResult {
                 format!("Client Error: Connection closed prematurely: {:?}\n", e)
             }
             ParseResult::FailedOnRequestLine(_status_code) => {
-                format!("Client Error: Cannot parse request line")
+                "Client Error: Cannot parse request line".to_string()
             }
             ParseResult::FailedOnHeaders(_status_code, method, resource) => format!(
                 "Client Error: Cannot parse headers - {:?} {}",

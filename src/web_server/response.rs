@@ -67,7 +67,10 @@ impl Response {
     }
 
     pub fn ok(body: String) -> Self {
-        Response { status_code: StatusCode::Ok, body }
+        Response {
+            status_code: StatusCode::Ok,
+            body,
+        }
     }
 
     pub fn encode_http_str(&self) -> String {

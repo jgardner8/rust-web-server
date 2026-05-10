@@ -6,7 +6,7 @@ fn route_query_params(request: &Request) -> Result<Response, StatusCode> {
     let elems = request.resource.path.split("?").collect::<Vec<&str>>();
 
     let body = if elems.len() == 1 {
-        String::from("Dynamic page - call me with some query parameters!")
+        "Dynamic page - call me with some query parameters!".to_string()
     } else {
         format!("Called {} with vars \"{}\"", elems[0], elems[1])
     };

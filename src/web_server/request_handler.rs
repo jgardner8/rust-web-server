@@ -1,6 +1,6 @@
 use std::convert;
 
-use crate::web_server::{ErrorRoute, Request, Route, Response, StatusCode};
+use crate::web_server::{ErrorRoute, Request, Response, Route, StatusCode};
 
 pub struct RequestHandler {
     routes: Box<[Route]>,
@@ -15,10 +15,7 @@ impl RequestHandler {
         }
     }
 
-    fn find_matching_route(
-        &self,
-        request: &Request,
-    ) -> Result<&Route, Response> {
+    fn find_matching_route(&self, request: &Request) -> Result<&Route, Response> {
         let path_no_query_params = request.resource.path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
 
         let matched_routes_by_path = self
@@ -38,11 +35,7 @@ impl RequestHandler {
         }
     }
 
-    fn route_to_response(
-        &self,
-        route: &Route,
-        request: &Request,
-    ) -> Result<Response, Response> {
+    fn route_to_response(&self, route: &Route, request: &Request) -> Result<Response, Response> {
         route
             .to_response(request)
             .map_err(|status_code| self.handle_error(status_code, request))
