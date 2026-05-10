@@ -1,5 +1,6 @@
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::io::{prelude::Write};
+use std::time::Duration;
 
 use crate::{
     arc::Arc,
@@ -8,6 +9,9 @@ use crate::{
 };
 
 pub struct WebServer;
+
+const READ_TIMEOUT: Duration = Duration::new(3, 0);
+const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 
 impl WebServer {
     pub fn bind_and_listen_forever<A: ToSocketAddrs>(
@@ -23,6 +27,9 @@ impl WebServer {
         for tcp_stream in listener.incoming() {
             match tcp_stream {
                 Ok(tcp_stream) => {
+                    tcp_stream.set_read_timeout(Some(READ_TIMEOUT)).expect("set_read_timeout call failed");
+                    tcp_stream.set_write_timeout(Some(WRITE_TIMEOUT)).expect("set_write_timeout call failed");
+
                     let request_handler = request_handler.clone();
                     thread_pool.execute(move || {
                         handle_connection(tcp_stream, request_handler);
@@ -44,7 +51,7 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHand
                 });
         }
         Err(e) => {
-            println!("Client Error: Failed to receive full request: {:?}", e);
+            println!("Client Error: Connection closed before response complete: {:?}", e);
         }
     }
 }
