@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
 use std::io::prelude::Write;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
+use crate::web_server::request_parser::ParseResult;
+use crate::web_server::{Request, RequestMethod, RequestParser, Resource, Response};
 use crate::{
     arc::Arc,
     thread_pool::ThreadPool,
@@ -46,16 +49,47 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHand
         .set_write_timeout(Some(WRITE_TIMEOUT))
         .expect("set_write_timeout system call failed");
 
-    match request_handler.request_stream_to_response(&tcp_stream) {
-        Ok(response) => {
-            tcp_stream
-                .write_all(response.encode_http_str().as_bytes())
-                .unwrap_or_else(|e| {
-                    eprintln!("Error: Failed to write response: {:?}", e);
-                });
-        }
-        Err(e) => {
+    let request_parse_result = RequestParser::parse_stream(&tcp_stream);
+    let maybe_response = handle_request_parse_result(request_parse_result, request_handler);
+    if let Some(response) = maybe_response {
+        tcp_stream
+            .write_all(response.encode_http_str().as_bytes())
+            .unwrap_or_else(|e| {
+                eprintln!("Error: Failed to write response: {:?}", e);
+            });
+    };
+}
+
+fn handle_request_parse_result(
+    request_parse_result: ParseResult,
+    request_handler: Arc<RequestHandler>,
+) -> Option<Response> {
+    match request_parse_result {
+        ParseResult::StreamError(e) => {
             println!("Client Error: Connection closed prematurely: {:?}", e);
+            None
         }
+        ParseResult::FailedOnRequestLine(status_line) => Some(request_handler.error_response(
+            status_line,
+            &Request::new(
+                RequestMethod::Unknown,
+                Resource::invalid(),
+                BTreeMap::new(),
+                String::new(),
+            ),
+        )),
+        ParseResult::FailedOnHeaders(status_line, method, resource) => {
+            Some(request_handler.error_response(
+                status_line,
+                &Request::new(method, resource, BTreeMap::new(), String::new()),
+            ))
+        }
+        ParseResult::FailedOnBody(status_line, method, resource, headers) => {
+            Some(request_handler.error_response(
+                status_line,
+                &Request::new(method, resource, headers, String::new()),
+            ))
+        }
+        ParseResult::Success(request) => Some(request_handler.handle_request(&request)),
     }
 }
