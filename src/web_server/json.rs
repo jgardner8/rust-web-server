@@ -149,6 +149,29 @@ impl JsonParser {
         Ok(Json::Null)
     }
 
+    fn parse_scientific_notation(&mut self, dec_str: &mut String) -> Result<()> {
+        dec_str.push('e');
+        self.eat_any();
+
+        let c = self.peek()?;
+        if c == '+' || c == '-' {
+            dec_str.push(c);
+            self.eat_any();
+        }
+            
+        loop {
+            let c = self.peek()?;
+            if c.is_ascii_digit() {
+                dec_str.push(c);
+                self.eat_any();
+            } else {
+                break;
+            }
+        }
+
+        Ok(())
+    } 
+
     fn parse_double(&mut self) -> Result<Json> {
         let mut dec_str = String::new();
 
@@ -170,6 +193,11 @@ impl JsonParser {
                 break;
             }
         }
+
+        if self.peek()?.to_ascii_lowercase() == 'e' {
+            self.parse_scientific_notation(&mut dec_str)?;
+        }
+
         match dec_str.parse::<f64>() {
             Ok(double) => Ok(Json::Double(double)),
             Err(_) => panic!("Failed to parse \"{}\" as double", dec_str),
@@ -311,7 +339,7 @@ mod tests {
                 "key1".to_string(),
                 Json::String("string".to_string())
             )])))
-        )
+        );
     }
 
     #[test]
@@ -326,7 +354,7 @@ mod tests {
                 "key1".to_string(),
                 Json::String("\n\t\t\t\"test\"".to_string())
             )])))
-        )
+        );
     }
 
     #[test]
@@ -342,7 +370,32 @@ mod tests {
                 "key2".to_string(),
                 Json::Double(-2.5)
             ),])))
-        )
+        );
+    }
+
+    #[test]
+    fn scientific_notation() {
+        let json_str = r#"{
+			"key2": [
+                3.7e19,
+                3.7e+19,
+                3.7e-19,
+                -3.7e-19
+            ]
+		}"#;
+
+        let json = Json::parse(json_str);
+        assert_eq!(
+            json.unwrap(),
+            Json::Object(Box::new(BTreeMap::from([
+                    ("key2".to_string(), Json::Array(Box::new(Vec::from([
+                    Json::Double(3.7e19),
+                    Json::Double(3.7e19),
+                    Json::Double(3.7e-19),
+                    Json::Double(-3.7e-19),
+                ])))
+            )])))
+        );
     }
 
     #[test]
@@ -358,7 +411,7 @@ mod tests {
                 "key3".to_string(),
                 Json::Boolean(true)
             )])))
-        )
+        );
     }
 
     #[test]
@@ -387,7 +440,7 @@ mod tests {
                     ])))
                 ])))
             ),])))
-        )
+        );
     }
 
     #[test]
@@ -403,7 +456,7 @@ mod tests {
                 "key5".to_string(),
                 Json::Object(Box::new(BTreeMap::new()))
             ),])))
-        )
+        );
     }
 
     #[test]
@@ -422,7 +475,7 @@ mod tests {
                 ("key7.2".to_string(), Json::Null),
                 ("key7.3".to_string(), Json::Null),
             ])))
-        )
+        );
     }
 
     #[test]
@@ -444,7 +497,7 @@ mod tests {
                     ("key7.2".to_string(), Json::Double(-3.0))
                 ])))
             ),])))
-        )
+        );
     }
 
     #[test]
@@ -457,7 +510,7 @@ mod tests {
         assert_eq!(
             json.unwrap(),
             Json::Object(Box::new(BTreeMap::from([("key6".to_string(), Json::Null)])))
-        )
+        );
     }
 
     #[test]
@@ -491,7 +544,7 @@ mod tests {
                 ("key5".to_string(), Json::Object(Box::new(BTreeMap::new()))),
                 ("key6".to_string(), Json::Null)
             ])))
-        )
+        );
     }
 
     #[test]
@@ -504,5 +557,72 @@ mod tests {
         let json = &Json::parse(json_str);
         assert_contains!(json.as_ref().unwrap_err().msg, "Key \"a\"");
         assert_contains!(json.as_ref().unwrap_err().msg, "more than once")
+    }
+
+    #[test]
+    fn complex() {
+        let json_str = r###"{ "id":"test-0001",
+"name"   :    "Messy JSON Parser Test" ,
+  "version":3,"active":true,
+"metadata":{
+"created_at":"2026-05-13T09:45:12+10:00","updated_at":null,
+"tags":[
+"json","parser-test",
+"",
+"unicode-🔥",
+"quotes-\"inside\"","slash\\/backslash\\\\test"
+],
+"weird keys":{ "":"empty key","   ":"spaces-only key",
+"dot.key":"looks like a path",
+"array[0]":"looks like an array accessor","true":"string key named true",
+"null":"string key named null" } },
+"users":[{"id":1,"name":"Alice",
+"roles":[
+"admin",
+"editor","admin"],"preferences":{"theme":"dark","notifications":
+{"email":true,
+"sms":false,"push":null}},
+"notes":"Line one\nLine two\nTabbed:\tvalue"},
+{
+"id":"2",
+"name":"Bob \"The Builder\"",
+"roles":[] ,
+"preferences":{},"notes":""},
+{       "id":3.14159,
+"name":null,
+"roles":["viewer",42,false,null,{"nestedRole":true}],
+"preferences":{"numbers":[0,-0,1,-1,12345678901234567890,
+0.000000000123,1.23e-10,-9.99e+99]}}],
+"deeplyNested":{"level1":
+{"level2":{"level3":
+{"level4":{"level5":
+{"value":"finally","emptyArray":[],"emptyObject":{},
+"mixed":[{"a":[{"b":[{"c":"nested object in array in object in array"}]}]}]}}}}}},
+"orders":[
+{"orderId":"A-001",
+"items":[{"sku":"ABC-123","qty":2,"price":19.99,
+"discounts":[{"type":"percentage","value":10},{"type":"fixed","value":2.5}]},
+{"sku":"XYZ-999","qty":0,"price":null,"discounts":[]}],
+"shipping":{"address":{
+"line1":"123 Example St",
+"line2":"Unit \"B\"","city":"Melbourne","postcode":"3000","country":"AU"},
+"instructions":"Leave at door unless raining.\nIf raining, call: +61 400 000 000"}}],
+"escapedStrings":{"quote":"\"","backslash":"\\","newline":"\n",
+"carriageReturn":"\r","tab":"\t","formFeed":"\f","backspace":"\b",
+"unicode":"\u0048\u0065\u006c\u006c\u006f","emoji":"🧪🚀🐀"},
+"matrix":[[1,2,3],
+[true,false,null],["a","b",{"c":[4,5,6]}]],
+"featureFlags":{
+"new-parser":true,"legacy_parser":false,
+"experimental.parser.v2":{"enabled":true,
+"rollout":0.25,"rules":[{"country":"AU","percentage":50,
+"conditions":{"minAge":18,"maxAge":null,
+"segments":["beta","internal",""]}}]}},
+"almostEmpty":{"array":[],"object":{},
+"string":"","nullValue":null,"falseValue":false,"zero":0}}
+    }
+}"###;
+        let json = &Json::parse(json_str);
+        assert_ok!(json);
     }
 }
