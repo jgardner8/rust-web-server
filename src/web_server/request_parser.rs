@@ -7,7 +7,7 @@ use std::{
     str::FromStr, string::FromUtf8Error,
 };
 
-use crate::web_server::{Request, RequestMethod, Resource, StatusCode};
+use crate::web_server::{Request, RequestMethod, Resource, StatusCode, request::Parameters};
 
 pub struct RequestParser;
 
@@ -19,7 +19,7 @@ pub enum ParseResult {
         StatusCode,
         RequestMethod,
         Resource,
-        BTreeMap<String, String>,
+        Parameters,
     ),
     Success(Request),
 }
@@ -30,10 +30,10 @@ const MAX_HEADERS_SIZE: u16 = 8 * 1024; // https://stackoverflow.com/questions/6
 const MAX_BODY_SIZE: usize = 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
 
 impl RequestParser {
-    fn parse_query_str(query_str: &str) -> BTreeMap<String, String> {
+    fn parse_query_str(query_str: &str) -> Parameters {
         let mut map = BTreeMap::new();
-        for kvp in query_str.split("&") {
-            match kvp.split_once("=") {
+        for kvp in query_str.split('&') {
+            match kvp.split_once('=') {
                 None => continue,
                 Some((key, value)) => map.insert(String::from(key), String::from(value)),
             };
@@ -42,7 +42,7 @@ impl RequestParser {
     }
 
     fn parse_resource(url: &str) -> Result<Resource, FromUtf8Error> {
-        let (path, query_params) = match url.split_once("?") {
+        let (path, query_params) = match url.split_once('?') {
             None => (url, BTreeMap::new()),
             Some((path, query_str)) => (path, Self::parse_query_str(query_str)),
         };
@@ -76,7 +76,7 @@ impl RequestParser {
             // Matches "\r\n" and "", while being too short for a valid header definition (a:b). Must be at end of headers
             Ok(None)
         } else {
-            match header_line.split_once(":") {
+            match header_line.split_once(':') {
                 Some((k, v)) => Ok(Some((String::from(k.trim()), String::from(v.trim())))),
                 None => Err(StatusCode::BadRequest),
             }

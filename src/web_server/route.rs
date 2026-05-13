@@ -1,6 +1,6 @@
-use std::{borrow::Cow, fs};
+use std::{borrow::Cow, collections::BTreeMap, fs, str::Split};
 
-use crate::web_server::{Request, RequestMethod, Response, StatusCode};
+use crate::web_server::{Request, RequestMethod, Response, StatusCode, request::Parameters};
 
 pub struct Route {
     method: RequestMethod,
@@ -8,7 +8,14 @@ pub struct Route {
     response_type: ResponseType,
 }
 
-pub struct PathPattern(String);
+pub struct PathPattern {
+    components: Vec<PathComponent>,
+}
+
+pub enum PathComponent {
+    Literal(String),
+    Variable(String),
+}
 
 pub struct ErrorRoute {
     status_code: StatusCode,
@@ -20,7 +27,8 @@ pub enum ResponseType {
     Function(Box<RequestProcessorFn>),
 }
 
-type RequestProcessorFn = dyn Fn(&Request) -> Result<Response, StatusCode> + Send + Sync;
+type RequestProcessorFn =
+    dyn Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync;
 
 impl Route {
     fn new(method: RequestMethod, path_pattern: PathPattern, response_type: ResponseType) -> Self {
@@ -34,24 +42,24 @@ impl Route {
     pub fn file(method: RequestMethod, path_pattern: &str, file_path: &'static str) -> Self {
         Route::new(
             method,
-            PathPattern(String::from(path_pattern)),
+            PathPattern::new(path_pattern),
             ResponseType::new_file(file_path),
         )
     }
 
     pub fn func<F>(method: RequestMethod, path_pattern: &str, function: F) -> Self
     where
-        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Route::new(
             method,
-            PathPattern(String::from(path_pattern)),
+            PathPattern::new(path_pattern),
             ResponseType::new_func(function),
         )
     }
 
-    pub fn matches_path(&self, path: &String) -> bool {
-        self.path_pattern.0 == *path
+    pub fn matches_path(&self, path: &str) -> bool {
+        self.path_pattern.matches(path)
     }
 
     pub fn matches_method(&self, method: RequestMethod) -> bool {
@@ -59,7 +67,96 @@ impl Route {
     }
 
     pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
-        self.response_type.to_response(request)
+        let path_params = self.path_pattern.get_path_params(&request.resource.path);
+        self.response_type.to_response(request, path_params)
+    }
+}
+
+impl PathPattern {
+    pub fn new(pattern: &str) -> Self {
+        assert!(
+            pattern.starts_with("/"),
+            "Path pattern {} does not start with /",
+            pattern
+        );
+        PathPattern {
+            components: Self::parse_components(pattern),
+        }
+    }
+
+    fn split_components(path: &str) -> Split<'_, char> {
+        assert!(
+            path.starts_with('/'),
+            "Path {} doesn't start with / - was not validated properly",
+            path
+        );
+        path[1..].split('/')
+    }
+
+    fn parse_components(pattern: &str) -> Vec<PathComponent> {
+        if pattern == "/" {
+            return Vec::new();
+        }
+
+        let mut components = Vec::new();
+        for component in Self::split_components(pattern) {
+            match component.chars().nth(0) {
+                None => panic!("Path pattern {} has empty component", pattern),
+                Some('{') => {
+                    assert!(
+                        component.ends_with('}'),
+                        "Path pattern {} has no closing brace in component {}",
+                        pattern,
+                        component
+                    );
+                    let var_name = &component[1..component.chars().count() - 1];
+                    components.push(PathComponent::Variable(String::from(var_name)));
+                }
+                Some(_) => {
+                    components.push(PathComponent::Literal(String::from(component)));
+                }
+            }
+        }
+        components
+    }
+
+    fn matches(&self, path: &str) -> bool {
+        if !path.starts_with('/') {
+            return false;
+        }
+
+        let components = Self::split_components(path).collect::<Vec<&str>>();
+
+        if self.components.len() != components.len() {
+            return false;
+        }
+
+        self.components
+            .iter()
+            .zip(components)
+            .all(|(mine, theirs)| match (mine, theirs) {
+                (PathComponent::Variable(_), value) => !value.is_empty(),
+                (PathComponent::Literal(a), b) => a == b,
+            })
+    }
+
+    fn get_path_params(&self, path: &str) -> Parameters {
+        let mut params = BTreeMap::new();
+        let components = Self::split_components(path);
+
+        for (mine, theirs) in self.components.iter().zip(components) {
+            match (mine, theirs) {
+                (PathComponent::Variable(key), value) => {
+                    params.insert(key.clone(), String::from(value));
+                }
+                (PathComponent::Literal(a), b) => assert!(
+                    *a == *b,
+                    "PathPattern.get_path_params(path) called with invalid path. Check PathPattern.matches(path) first"
+                ),
+            };
+        }
+
+        params
     }
 }
 
@@ -81,7 +178,7 @@ impl ErrorRoute {
 
     pub fn function<F>(status_code: StatusCode, function: F) -> Self
     where
-        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Self::new(status_code, ResponseType::new_func(function))
     }
@@ -91,7 +188,7 @@ impl ErrorRoute {
     }
 
     pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
-        self.response_type.to_response(request)
+        self.response_type.to_response(request, BTreeMap::new())
     }
 }
 
@@ -106,15 +203,19 @@ impl ResponseType {
 
     pub fn new_func<F>(function: F) -> ResponseType
     where
-        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         ResponseType::Function(Box::new(function))
     }
 
-    pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
+    pub fn to_response(
+        &self,
+        request: &Request,
+        path_params: Parameters,
+    ) -> Result<Response, StatusCode> {
         match self {
             ResponseType::File(path) => self.file_response(path),
-            ResponseType::Function(f) => f(request),
+            ResponseType::Function(f) => f(request, path_params),
         }
     }
 

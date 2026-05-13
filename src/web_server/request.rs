@@ -4,7 +4,7 @@ use urlencoding::{decode, encode};
 pub struct Request {
     pub method: RequestMethod,
     pub resource: Resource,
-    pub headers: BTreeMap<String, String>,
+    pub headers: Parameters,
     pub body: String,
 }
 
@@ -19,16 +19,18 @@ pub enum RequestMethod {
     Unknown,
 }
 
+pub type Parameters = BTreeMap<String, String>;
+
 pub struct Resource {
     pub path: String,
-    pub query_params: BTreeMap<String, String>,
+    pub query_params: Parameters,
 }
 
 impl Request {
     pub fn new(
         method: RequestMethod,
         resource: Resource,
-        headers: BTreeMap<String, String>,
+        headers: Parameters,
         body: String,
     ) -> Self {
         Request {
@@ -60,20 +62,18 @@ impl FromStr for RequestMethod {
 }
 
 impl Resource {
-    fn new(path: String, query_params: BTreeMap<String, String>) -> Self {
+    fn new(path: String, query_params: Parameters) -> Self {
         Resource { path, query_params }
     }
 
-    pub fn url_decode(
-        path: &str,
-        query_params: BTreeMap<String, String>,
-    ) -> Result<Self, FromUtf8Error> {
+    // TODO: Get original encoded value?
+    pub fn url_decode(path: &str, query_params: Parameters) -> Result<Self, FromUtf8Error> {
         let path = decode(path)?;
 
         let query_params = query_params
             .iter()
             .map(|(key, value)| Ok((decode(key)?.into_owned(), decode(value)?.into_owned())))
-            .collect::<Result<BTreeMap<String, String>, FromUtf8Error>>()?;
+            .collect::<Result<Parameters, FromUtf8Error>>()?;
 
         Ok(Resource::new(path.into_owned(), query_params))
     }
@@ -89,8 +89,8 @@ impl Resource {
             .map(|(key, value)| format!("{}={}&", encode(key), encode(value)))
             .collect::<String>();
 
-        if query_str.len() > 0 {
-            query_str = format!("?{}", &query_str[0..query_str.len()-1]);
+        if !query_str.is_empty() {
+            query_str = format!("?{}", &query_str[0..query_str.len() - 1]);
         }
 
         let path = if Some("/") == self.path.get(0..1) {

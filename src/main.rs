@@ -1,23 +1,30 @@
 use http_server::web_server::{
-    ErrorRoute, Request, RequestMethod::Get, Response, Route, StatusCode, WebServer,
+    ErrorRoute, Parameters, Request, RequestMethod::Get, Response, Route, StatusCode, WebServer,
 };
 
-fn route_query_params(request: &Request) -> Result<Response, StatusCode> {
-    let body = if request.resource.query_params.len() == 0 {
+fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
+    let body = if request.resource.query_params.is_empty() {
         "Dynamic page - call me with some query parameters!".to_string()
     } else {
-        format!("Called {} with vars \"{:?}\"", request.resource.path, request.resource.query_params)
+        format!(
+            "Called {} with query parameters \"{:?}\"",
+            request.resource.path, request.resource.query_params
+        )
     };
 
     Ok(Response::ok(body))
 }
 
-fn route_get_user(request: &Request) -> Result<Response, StatusCode> {
+fn route_get_me(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
     match request.headers.get("user-cookie") {
         Some(cookie) if cookie == "test" => Ok(Response::ok("Welcome user!".to_string())),
         Some(_) => Err(StatusCode::Forbidden),
         None => Err(StatusCode::Unauthorized),
     }
+}
+
+fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
+    Ok(Response::ok(format!("User {}", path_params["id"])))
 }
 
 fn main() {
@@ -28,7 +35,9 @@ fn main() {
             Route::file(Get, "/index.html", "html/index.html"),
             Route::file(Get, "/other.html", "html/other.html"),
             Route::func(Get, "/query_params", route_query_params),
-            Route::func(Get, "/user/{}", route_get_user),
+            Route::func(Get, "/user/me", route_get_me),
+            Route::func(Get, "/user/{id}", route_get_user),
+            Route::func(Get, "/user/{id}/details", route_get_user),
         ]),
         Box::new([ErrorRoute::file(
             StatusCode::NotFound,
