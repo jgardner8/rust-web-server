@@ -7,4 +7,5 @@ edition = "2024"
 debug = true
 
 [dependencies]
+assertables = "9.9.0"
 urlencoding = "2.1.3"

@@ -1,3 +1,4 @@
+mod json;
 mod request;
 mod request_handler;
 mod request_parser;
