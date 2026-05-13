@@ -30,16 +30,11 @@ pub struct Resource {
 
 pub enum Body {
     Text(String),
-    JsonData(Json)
+    JsonData(Json),
 }
 
 impl Request {
-    pub fn new(
-        method: RequestMethod,
-        resource: Resource,
-        headers: Parameters,
-        body: Body,
-    ) -> Self {
+    pub fn new(method: RequestMethod, resource: Resource, headers: Parameters, body: Body) -> Self {
         Request {
             method,
             resource,

@@ -4,10 +4,13 @@ use std::{
         self, BufReader,
         prelude::{BufRead, Read},
     },
-    str::FromStr, string::FromUtf8Error,
+    str::FromStr,
+    string::FromUtf8Error,
 };
 
-use crate::web_server::{Body, Json, Request, RequestMethod, Resource, StatusCode, request::Parameters};
+use crate::web_server::{
+    Body, Json, Request, RequestMethod, Resource, StatusCode, request::Parameters,
+};
 
 pub struct RequestParser;
 
@@ -15,12 +18,7 @@ pub enum ParseResult {
     StreamError(io::Error),
     FailedOnRequestLine(StatusCode),
     FailedOnHeaders(StatusCode, RequestMethod, Resource),
-    FailedOnBody(
-        StatusCode,
-        RequestMethod,
-        Resource,
-        Parameters,
-    ),
+    FailedOnBody(StatusCode, RequestMethod, Resource, Parameters),
     Success(Request),
 }
 
@@ -167,15 +165,22 @@ impl RequestParser {
             Ok(_) => (),
             Err(e) => return ParseResult::StreamError(e),
         }
-        
-        let body = match headers.get("Content-Type").map(|s| { s.as_str() }) {
+
+        let body = match headers.get("Content-Type").map(|s| s.as_str()) {
             Some("application/json") => match Json::parse(buf) {
                 Ok(json) => Body::JsonData(json),
-                Err(_) => return ParseResult::FailedOnBody(StatusCode::BadRequest, method, resource, headers)
-            }
-            _ => Body::Text(buf.clone()),    
+                Err(_) => {
+                    return ParseResult::FailedOnBody(
+                        StatusCode::BadRequest,
+                        method,
+                        resource,
+                        headers,
+                    );
+                }
+            },
+            _ => Body::Text(buf.clone()),
         };
-        
+
         ParseResult::Success(Request::new(method, resource, headers, body))
     }
 }

@@ -1,5 +1,6 @@
 use http_server::web_server::{
-    Body, ErrorRoute, Parameters, Request, RequestMethod::Get, RequestMethod::Post, Response, Route, StatusCode, WebServer
+    Body, ErrorRoute, Parameters, Request, RequestMethod::Get, RequestMethod::Post, Response,
+    Route, StatusCode, WebServer,
 };
 
 fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
@@ -30,7 +31,10 @@ fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Respons
 fn route_post_user(request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
     match &request.body {
         Body::Text(_) => Err(StatusCode::UnsupportedMediaType),
-        Body::JsonData(json) => Ok(Response::ok(format!("User {}, body = {:?}", path_params["id"], json)))
+        Body::JsonData(json) => Ok(Response::ok(format!(
+            "User {}, body = {:?}",
+            path_params["id"], json
+        ))),
     }
 }
 

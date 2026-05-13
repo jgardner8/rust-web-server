@@ -118,21 +118,13 @@ impl JsonParser {
         Ok(result)
     }
 
-    fn parse_escape_char(&mut self) -> Result<char> {
-        let c = match self.pop()? {
-            '"' => '"',
-            c => c,
-        };
-        Ok(c)
-    }
-
     fn parse_string(&mut self) -> Result<Json> {
         self.eat('"')?;
 
         let mut key = String::new();
         loop {
             let c = match self.pop()? {
-                '\\' => self.parse_escape_char()?,
+                '\\' => self.pop()?,
                 '"' => break,
                 c => c,
             };
