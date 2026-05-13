@@ -6,7 +6,8 @@ mod response;
 mod route;
 mod web_server_impl;
 
-pub use request::{Parameters, Request, RequestMethod, Resource};
+pub use json::Json;
+pub use request::{Body, Parameters, Request, RequestMethod, Resource};
 pub use request_parser::RequestParser;
 pub use response::{Response, StatusCode};
 pub use route::{ErrorRoute, Route};

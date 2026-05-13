@@ -1,5 +1,5 @@
 use http_server::web_server::{
-    ErrorRoute, Parameters, Request, RequestMethod::Get, Response, Route, StatusCode, WebServer,
+    Body, ErrorRoute, Parameters, Request, RequestMethod::Get, RequestMethod::Post, Response, Route, StatusCode, WebServer
 };
 
 fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
@@ -27,6 +27,13 @@ fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Respons
     Ok(Response::ok(format!("User {}", path_params["id"])))
 }
 
+fn route_post_user(request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
+    match &request.body {
+        Body::Text(_) => Err(StatusCode::UnsupportedMediaType),
+        Body::JsonData(json) => Ok(Response::ok(format!("User {}, body = {:?}", path_params["id"], json)))
+    }
+}
+
 fn main() {
     WebServer::bind_and_listen_forever(
         "127.0.0.1:8080",
@@ -37,7 +44,7 @@ fn main() {
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/me", route_get_me),
             Route::func(Get, "/user/{id}", route_get_user),
-            Route::func(Get, "/user/{id}/details", route_get_user),
+            Route::func(Post, "/user/{id}", route_post_user),
         ]),
         Box::new([ErrorRoute::file(
             StatusCode::NotFound,

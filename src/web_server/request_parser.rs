@@ -7,7 +7,7 @@ use std::{
     str::FromStr, string::FromUtf8Error,
 };
 
-use crate::web_server::{Request, RequestMethod, Resource, StatusCode, request::Parameters};
+use crate::web_server::{Body, Json, Request, RequestMethod, Resource, StatusCode, request::Parameters};
 
 pub struct RequestParser;
 
@@ -167,8 +167,15 @@ impl RequestParser {
             Ok(_) => (),
             Err(e) => return ParseResult::StreamError(e),
         }
-        let body = buf.clone();
-
+        
+        let body = match headers.get("Content-Type").map(|s| { s.as_str() }) {
+            Some("application/json") => match Json::parse(buf) {
+                Ok(json) => Body::JsonData(json),
+                Err(_) => return ParseResult::FailedOnBody(StatusCode::BadRequest, method, resource, headers)
+            }
+            _ => Body::Text(buf.clone()),    
+        };
+        
         ParseResult::Success(Request::new(method, resource, headers, body))
     }
 }

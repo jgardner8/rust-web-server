@@ -1,11 +1,13 @@
 use std::{collections::BTreeMap, str::FromStr, string::FromUtf8Error};
 use urlencoding::{decode, encode};
 
+use crate::web_server::json::Json;
+
 pub struct Request {
     pub method: RequestMethod,
     pub resource: Resource,
     pub headers: Parameters,
-    pub body: String,
+    pub body: Body,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -26,12 +28,17 @@ pub struct Resource {
     pub query_params: Parameters,
 }
 
+pub enum Body {
+    Text(String),
+    JsonData(Json)
+}
+
 impl Request {
     pub fn new(
         method: RequestMethod,
         resource: Resource,
         headers: Parameters,
-        body: String,
+        body: Body,
     ) -> Self {
         Request {
             method,

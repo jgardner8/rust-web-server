@@ -4,7 +4,7 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
 use crate::web_server::request_parser::ParseResult;
-use crate::web_server::{Request, RequestMethod, RequestParser, Resource, Response};
+use crate::web_server::{Body, Request, RequestMethod, RequestParser, Resource, Response};
 use crate::{
     arc::Arc,
     thread_pool::ThreadPool,
@@ -76,19 +76,19 @@ fn handle_request_parse_result(
                 RequestMethod::Unknown,
                 Resource::invalid(),
                 BTreeMap::new(),
-                String::new(),
+                Body::Text(String::new()),
             ),
         )),
         ParseResult::FailedOnHeaders(status_code, method, resource) => {
             Some(request_handler.handle_error(
                 status_code,
-                &Request::new(method, resource, BTreeMap::new(), String::new()),
+                &Request::new(method, resource, BTreeMap::new(), Body::Text(String::new())),
             ))
         }
         ParseResult::FailedOnBody(status_code, method, resource, headers) => {
             Some(request_handler.handle_error(
                 status_code,
-                &Request::new(method, resource, headers, String::new()),
+                &Request::new(method, resource, headers, Body::Text(String::new())),
             ))
         }
         ParseResult::Success(request) => Some(request_handler.handle_request(&request)),
