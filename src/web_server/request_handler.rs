@@ -16,12 +16,10 @@ impl RequestHandler {
     }
 
     fn find_matching_route(&self, request: &Request) -> Result<&Route, Response> {
-        let path_no_query_params = request.resource.path.split("?").next().unwrap(); // unwrap is safe - split always returns at least one value
-
         let matched_routes_by_path = self
             .routes
             .iter()
-            .filter(|route| route.matches_path(path_no_query_params))
+            .filter(|route| route.matches_path(&request.resource.path))
             .collect::<Vec<_>>();
 
         if matched_routes_by_path.is_empty() {
@@ -29,7 +27,7 @@ impl RequestHandler {
         } else {
             matched_routes_by_path
                 .iter()
-                .find(|route| route.matches(request.method, path_no_query_params))
+                .find(|route| route.matches_method(request.method))
                 .ok_or(self.handle_error(StatusCode::MethodNotAllowed, request))
                 .copied()
         }

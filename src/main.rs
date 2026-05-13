@@ -3,12 +3,10 @@ use http_server::web_server::{
 };
 
 fn route_query_params(request: &Request) -> Result<Response, StatusCode> {
-    let elems = request.resource.path.split("?").collect::<Vec<&str>>();
-
-    let body = if elems.len() == 1 {
+    let body = if request.resource.query_params.len() == 0 {
         "Dynamic page - call me with some query parameters!".to_string()
     } else {
-        format!("Called {} with vars \"{}\"", elems[0], elems[1])
+        format!("Called {} with vars \"{:?}\"", request.resource.path, request.resource.query_params)
     };
 
     Ok(Response::ok(body))

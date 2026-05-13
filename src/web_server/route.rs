@@ -1,12 +1,14 @@
 use std::{borrow::Cow, fs};
 
-use crate::web_server::{Request, RequestMethod, Resource, Response, StatusCode};
+use crate::web_server::{Request, RequestMethod, Response, StatusCode};
 
 pub struct Route {
     method: RequestMethod,
-    resource: Resource,
+    path_pattern: PathPattern,
     response_type: ResponseType,
 }
+
+pub struct PathPattern(String);
 
 pub struct ErrorRoute {
     status_code: StatusCode,
@@ -21,58 +23,39 @@ pub enum ResponseType {
 type RequestProcessorFn = dyn Fn(&Request) -> Result<Response, StatusCode> + Send + Sync;
 
 impl Route {
-    fn new(method: RequestMethod, resource: Resource, response_type: ResponseType) -> Self {
+    fn new(method: RequestMethod, path_pattern: PathPattern, response_type: ResponseType) -> Self {
         Route {
             method,
-            resource,
+            path_pattern,
             response_type,
         }
     }
 
-    pub fn file(method: RequestMethod, path: &'static str, file_path: &'static str) -> Self {
+    pub fn file(method: RequestMethod, path_pattern: &str, file_path: &'static str) -> Self {
         Route::new(
             method,
-            Resource::borrowed(path),
+            PathPattern(String::from(path_pattern)),
             ResponseType::new_file(file_path),
         )
     }
 
-    pub fn file_dynamic(method: RequestMethod, path: String, file_path: String) -> Self {
-        Route::new(
-            method,
-            Resource::owned(path),
-            ResponseType::new_file_dynamic(file_path),
-        )
-    }
-
-    pub fn func<F>(method: RequestMethod, path: &'static str, function: F) -> Self
+    pub fn func<F>(method: RequestMethod, path_pattern: &str, function: F) -> Self
     where
         F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         Route::new(
             method,
-            Resource::borrowed(path),
+            PathPattern(String::from(path_pattern)),
             ResponseType::new_func(function),
         )
     }
 
-    pub fn func_dynamic<F>(method: RequestMethod, path: String, function: F) -> Self
-    where
-        F: Fn(&Request) -> Result<Response, StatusCode> + Send + Sync + 'static,
-    {
-        Route::new(
-            method,
-            Resource::owned(path),
-            ResponseType::new_func(function),
-        )
+    pub fn matches_path(&self, path: &String) -> bool {
+        self.path_pattern.0 == *path
     }
 
-    pub fn matches_path(&self, path_no_query_params: &str) -> bool {
-        self.resource.path == path_no_query_params
-    }
-
-    pub fn matches(&self, method: RequestMethod, path_no_query_params: &str) -> bool {
-        self.method == method && self.resource.path == path_no_query_params
+    pub fn matches_method(&self, method: RequestMethod) -> bool {
+        self.method == method
     }
 
     pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {

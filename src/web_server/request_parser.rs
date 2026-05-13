@@ -4,7 +4,7 @@ use std::{
         self, BufReader,
         prelude::{BufRead, Read},
     },
-    str::FromStr,
+    str::FromStr, string::FromUtf8Error,
 };
 
 use crate::web_server::{Request, RequestMethod, Resource, StatusCode};
@@ -30,6 +30,26 @@ const MAX_HEADERS_SIZE: u16 = 8 * 1024; // https://stackoverflow.com/questions/6
 const MAX_BODY_SIZE: usize = 1024 * 1024; // usually higher, but works for testing https://stackoverflow.com/questions/2880722/can-http-post-be-limitless
 
 impl RequestParser {
+    fn parse_query_str(query_str: &str) -> BTreeMap<String, String> {
+        let mut map = BTreeMap::new();
+        for kvp in query_str.split("&") {
+            match kvp.split_once("=") {
+                None => continue,
+                Some((key, value)) => map.insert(String::from(key), String::from(value)),
+            };
+        }
+        map
+    }
+
+    fn parse_resource(url: &str) -> Result<Resource, FromUtf8Error> {
+        let (path, query_params) = match url.split_once("?") {
+            None => (url, BTreeMap::new()),
+            Some((path, query_str)) => (path, Self::parse_query_str(query_str)),
+        };
+
+        Resource::url_decode(path, query_params)
+    }
+
     fn parse_request_line(request_line: &str) -> Result<(RequestMethod, Resource), StatusCode> {
         let elems = request_line.split(" ").collect::<Vec<&str>>();
 
@@ -41,7 +61,10 @@ impl RequestParser {
             return Err(StatusCode::HttpVersionNotSupported);
         }
 
-        let resource = Resource::owned(String::from(elems[1]));
+        let resource = match Self::parse_resource(elems[1]) {
+            Ok(resource) => resource,
+            Err(_) => return Err(StatusCode::UnsupportedMediaType),
+        };
 
         let method = RequestMethod::from_str(elems[0]).map_err(|()| StatusCode::NotImplemented)?;
 
