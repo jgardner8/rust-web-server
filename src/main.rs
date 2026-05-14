@@ -9,9 +9,9 @@ struct Greeting {
     to: String,
 }
 
-impl TryFrom<&Parameters> for Greeting {
+impl TryFrom<Parameters> for Greeting {
     type Error = StatusCode;
-    fn try_from(params: &Parameters) -> Result<Self, Self::Error> {
+    fn try_from(params: Parameters) -> Result<Self, Self::Error> {
         match (params.get("say"), params.get("to")) {
             (Some(say), Some(to)) => Ok(Greeting {
                 say: say.clone(),
@@ -23,16 +23,14 @@ impl TryFrom<&Parameters> for Greeting {
 }
 
 fn route_greeting_form_submission(
-    request: &Request,
+    _request: &Request,
     _path_params: Parameters,
+    greeting: Greeting,
 ) -> Result<Response, StatusCode> {
-    match &request.body {
-        Body::FormData(params) => {
-            let greeting = Greeting::try_from(params)?;
-            Ok(Response::ok(format!("I will say {} to {}", greeting.say, greeting.to)))
-        }
-        _ => Err(StatusCode::UnsupportedMediaType),
-    }
+    Ok(Response::ok(format!(
+        "I will say {} to {}",
+        greeting.say, greeting.to
+    )))
 }
 
 fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
@@ -77,7 +75,7 @@ fn main() {
             Route::file(Get, "/", "html/index.html"),
             Route::file(Get, "/index.html", "html/index.html"),
             Route::file(Get, "/greeting_form", "html/form.html"),
-            Route::func(Post, "/greeting_form", route_greeting_form_submission),
+            Route::data_form(Post, "/greeting_form", route_greeting_form_submission),
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/me", route_get_me),
             Route::func(Get, "/user/{id}", route_get_user),

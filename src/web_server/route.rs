@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, fs, str::Split};
 
 use crate::vec::Vec;
+use crate::web_server::Body;
 use crate::web_server::{Request, RequestMethod, Response, StatusCode, request::Parameters};
 
 pub struct Route {
@@ -56,6 +57,31 @@ impl Route {
             method,
             PathPattern::new(path_pattern),
             ResponseType::new_func(function),
+        )
+    }
+
+    pub fn data_form<T: TryFrom<Parameters>, F>(
+        method: RequestMethod,
+        path_pattern: &str,
+        function: F,
+    ) -> Self
+    where
+        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
+    {
+        let user_function = Box::new(function);
+
+        Route::new(
+            method,
+            PathPattern::new(path_pattern),
+            ResponseType::new_func(
+                move |request: &Request, path_params: Parameters| match &request.body {
+                    Body::FormData(params) => match T::try_from(params.clone()) {
+                        Ok(model) => user_function(request, path_params, model),
+                        Err(_) => Err(StatusCode::BadRequest),
+                    },
+                    _ => Err(StatusCode::UnsupportedMediaType),
+                },
+            ),
         )
     }
 
