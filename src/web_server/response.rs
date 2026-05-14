@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StatusCode {
     // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
     Ok = 200,

@@ -3,23 +3,12 @@ use http_server::web_server::{
     RequestMethod::{Get, Post},
     Response, Route, StatusCode, WebServer,
 };
+use derive_try_from::TryFromParameters;
 
+#[derive(TryFromParameters)]
 struct Greeting {
     say: String,
     to: String,
-}
-
-impl TryFrom<Parameters> for Greeting {
-    type Error = StatusCode;
-    fn try_from(params: Parameters) -> Result<Self, Self::Error> {
-        match (params.get("say"), params.get("to")) {
-            (Some(say), Some(to)) => Ok(Greeting {
-                say: say.clone(),
-                to: to.clone(),
-            }),
-            _ => Err(StatusCode::BadRequest),
-        }
-    }
 }
 
 fn route_greeting_form_submission(
