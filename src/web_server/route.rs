@@ -231,7 +231,9 @@ impl ErrorRoute {
     }
 
     pub fn to_response(&self, request: &Request) -> Result<Response, StatusCode> {
-        self.response_type.to_response(request, BTreeMap::new())
+        let mut response = self.response_type.to_response(request, BTreeMap::new())?;
+        response.status_code = self.status_code;
+        Ok(response)
     }
 }
 
