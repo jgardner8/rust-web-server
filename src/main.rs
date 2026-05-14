@@ -1,14 +1,15 @@
+use derive_try_from::TryFromParameters;
 use http_server::web_server::{
     Body, ErrorRoute, Parameters, Request,
     RequestMethod::{Get, Post},
     Response, Route, StatusCode, WebServer,
 };
-use derive_try_from::TryFromParameters;
 
 #[derive(TryFromParameters)]
 struct Greeting {
     say: String,
     to: String,
+    times: u8,
 }
 
 fn route_greeting_form_submission(
@@ -16,10 +17,12 @@ fn route_greeting_form_submission(
     _path_params: Parameters,
     greeting: Greeting,
 ) -> Result<Response, StatusCode> {
-    Ok(Response::ok(format!(
-        "I will say {} to {}",
-        greeting.say, greeting.to
-    )))
+    let body = if greeting.times <= 3 {
+        format!("I will say {} to {}, {} times", greeting.say, greeting.to, greeting.times)
+    } else {
+        "I'm not a spam robot!".to_string()
+    };
+    Ok(Response::ok(body))
 }
 
 fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {

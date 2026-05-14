@@ -26,7 +26,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             fn try_from(params: http_server::web_server::Parameters) -> Result<Self, Self::Error> {
                 match ( #( params.get(stringify!(#struct_fields)) ),* ) {
                     ( #( Some(#struct_fields) ),* ) => Ok(#struct_name {
-                        #( #struct_fields: #struct_fields.clone() ),*
+                        #( #struct_fields: #struct_fields.parse().map_err(|_| http_server::web_server::StatusCode::BadRequest)? ),*
                     }),
                     _ => Err(http_server::web_server::StatusCode::BadRequest),
                 }
