@@ -12,14 +12,6 @@ pub enum Json {
     Null,
 }
 
-pub struct JsonParser {
-    buf: Vec<char>,
-    i: usize,
-    line: u32,
-    beginning_line_i: usize,
-    nesting: u32,
-}
-
 #[derive(Debug)]
 pub struct ParseFailure {
     msg: String,
@@ -27,25 +19,38 @@ pub struct ParseFailure {
     char: usize,
 }
 
+struct JsonParser {
+    buf: Vec<char>,
+    i: usize,
+    line: u32,
+    beginning_line_i: usize,
+    nesting: u32,
+}
+
 type Result<T> = std::result::Result<T, ParseFailure>;
 
 impl Json {
     pub fn parse(json_str: &str) -> Result<Json> {
         let mut parser = JsonParser::new(json_str);
-        let result = parser.parse_object();
-        if result.is_ok() {
-            assert!(
-                parser.nesting == 0,
-                "Bad state, successful result while still at nesting level {}",
-                parser.nesting
-            );
+        match parser.parse_object() {
+            result @ Ok(_) => {
+                assert!(
+                    parser.nesting == 0,
+                    "Bad state, successful result while still at nesting level {}",
+                    parser.nesting
+                );
+                result
+            }
+            Err(parse_failure) => {
+                println!("{}", parse_failure.to_log());
+                Err(parse_failure)
+            }
         }
-        result
     }
 }
 
 impl JsonParser {
-    pub fn new(json_str: &str) -> Self {
+    fn new(json_str: &str) -> Self {
         JsonParser {
             buf: Vec::from_iter(json_str.chars()),
             i: 0,
@@ -299,7 +304,7 @@ impl JsonParser {
 }
 
 impl ParseFailure {
-    pub fn from(msg: String, parser: &JsonParser) -> ParseFailure {
+    fn from(msg: String, parser: &JsonParser) -> ParseFailure {
         ParseFailure {
             msg,
             line: parser.line,
@@ -307,7 +312,7 @@ impl ParseFailure {
         }
     }
 
-    pub fn to_log(&self) -> String {
+    fn to_log(&self) -> String {
         format!(
             "JSON parse failure (L{}:{}) - {}",
             self.line, self.char, self.msg

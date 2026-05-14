@@ -85,7 +85,7 @@ impl Resource {
         Resource::new(String::new(), BTreeMap::new())
     }
 
-    pub fn to_log(&self) -> String {
+    fn to_log(&self) -> String {
         let mut query_str = self
             .query_params
             .iter()

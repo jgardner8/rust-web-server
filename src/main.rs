@@ -1,8 +1,8 @@
 use derive_try_from::TryFromParameters;
 use http_server::web_server::{
-    Body, ErrorRoute, Parameters, Request,
+    self, Body, ErrorRoute, Parameters, Request,
     RequestMethod::{Get, Post},
-    Response, Route, StatusCode, WebServer,
+    Response, Route, StatusCode,
 };
 
 #[derive(TryFromParameters)]
@@ -61,7 +61,7 @@ fn route_post_user(request: &Request, path_params: Parameters) -> Result<Respons
 }
 
 fn main() {
-    WebServer::bind_and_listen_forever(
+    web_server::bind_and_listen_forever(
         "127.0.0.1:8080",
         Box::new([
             Route::file(Get, "/", "html/index.html"),

@@ -29,7 +29,7 @@ pub struct Response {
 }
 
 impl StatusCode {
-    pub fn reason_phrase(&self) -> &'static str {
+    fn reason_phrase(&self) -> &'static str {
         match *self as u16 {
             200 => "OK",
             201 => "Created",
@@ -58,7 +58,7 @@ impl StatusCode {
         }
     }
 
-    pub fn encode_http_str(&self) -> String {
+    fn encode_http_str(&self) -> String {
         format!("HTTP/1.1 {} {}", *self as u16, self.reason_phrase())
     }
 }

@@ -3,40 +3,37 @@ use std::io::prelude::Write;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
+use crate::web_server::request::Resource;
 use crate::web_server::request_parser::ParseResult;
-use crate::web_server::{Body, Request, RequestMethod, RequestParser, Resource, Response};
+use crate::web_server::{Body, Request, RequestMethod, Response, request_parser};
 use crate::{
     arc::Arc,
     thread_pool::ThreadPool,
     web_server::{ErrorRoute, Route, request_handler::RequestHandler},
 };
 
-pub struct WebServer;
-
 const READ_TIMEOUT: Duration = Duration::new(3, 0);
 const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 
-impl WebServer {
-    pub fn bind_and_listen_forever<A: ToSocketAddrs>(
-        address: A,
-        routes: Box<[Route]>,
-        error_routes: Box<[ErrorRoute]>,
-    ) {
-        let thread_pool = ThreadPool::new(4);
-        let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
+pub fn bind_and_listen_forever<A: ToSocketAddrs>(
+    address: A,
+    routes: Box<[Route]>,
+    error_routes: Box<[ErrorRoute]>,
+) {
+    let thread_pool = ThreadPool::new(4);
+    let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
 
-        let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
+    let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
 
-        for tcp_stream in listener.incoming() {
-            match tcp_stream {
-                Ok(tcp_stream) => {
-                    let request_handler = request_handler.clone();
-                    thread_pool.execute(move || {
-                        handle_connection(tcp_stream, request_handler);
-                    });
-                }
-                Err(e) => println!("Client Error: Connection failed: {:?}", e),
+    for tcp_stream in listener.incoming() {
+        match tcp_stream {
+            Ok(tcp_stream) => {
+                let request_handler = request_handler.clone();
+                thread_pool.execute(move || {
+                    handle_connection(tcp_stream, request_handler);
+                });
             }
+            Err(e) => println!("Client Error: Connection failed: {:?}", e),
         }
     }
 }
@@ -49,7 +46,7 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHand
         .set_write_timeout(Some(WRITE_TIMEOUT))
         .expect("set_write_timeout system call failed");
 
-    let request_parse_result = RequestParser::parse_stream(&tcp_stream);
+    let request_parse_result = request_parser::parse_stream(&tcp_stream);
 
     print!("{}", request_parse_result.to_log());
 
