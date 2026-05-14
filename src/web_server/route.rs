@@ -60,21 +60,6 @@ impl Route {
         )
     }
 
-    fn try_invoke_with_model<T, E, F>(
-        model_result: Result<T, E>,
-        function: &F,
-        request: &Request,
-        path_params: Parameters,
-    ) -> Result<Response, StatusCode>
-    where
-        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
-    {
-        match model_result {
-            Ok(model) => function(request, path_params, model),
-            Err(_) => Err(StatusCode::BadRequest),
-        }
-    }
-
     pub fn data_form<T: TryFrom<Parameters>, F>(
         method: RequestMethod,
         path_pattern: &str,
@@ -84,12 +69,10 @@ impl Route {
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         let wrapper = move |request: &Request, path_params| match request.body {
-            Body::FormData(ref params) => Self::try_invoke_with_model(
-                T::try_from(params.clone()),
-                &function,
-                request,
-                path_params,
-            ),
+            Body::FormData(ref params) => match T::try_from(params.clone()) {
+                Ok(model) => function(request, path_params, model),
+                Err(_) => Err(StatusCode::BadRequest),
+            },
             _ => Err(StatusCode::UnsupportedMediaType),
         };
 
@@ -104,13 +87,11 @@ impl Route {
     where
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        let wrapper = move |request: &Request, path_params| {
-            Self::try_invoke_with_model(
-                T::try_from(request.resource.query_params.clone()),
-                &function,
-                request,
-                path_params,
-            )
+        let wrapper = move |request: &Request, path_params| match T::try_from(
+            request.resource.query_params.clone(),
+        ) {
+            Ok(model) => function(request, path_params, model),
+            Err(_) => Err(StatusCode::BadRequest),
         };
 
         Route::func(method, path_pattern, wrapper)
@@ -121,12 +102,10 @@ impl Route {
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         let wrapper = move |request: &Request, path_params| match request.body {
-            Body::JsonData(ref json) => Self::try_invoke_with_model(
-                T::from_json(json.clone()).ok_or(()),
-                &function,
-                request,
-                path_params,
-            ),
+            Body::JsonData(ref json) => match T::from_json(json.clone()).ok_or(()) {
+                Ok(model) => function(request, path_params, model),
+                Err(_) => Err(StatusCode::BadRequest),
+            },
             _ => Err(StatusCode::UnsupportedMediaType),
         };
 
