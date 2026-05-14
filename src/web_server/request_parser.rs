@@ -178,6 +178,7 @@ impl RequestParser {
                     );
                 }
             },
+            Some("application/x-www-form-urlencoded") => Body::FormData(Self::parse_query_str(buf)),
             _ => Body::Text(buf.clone()),
         };
 

@@ -30,6 +30,7 @@ pub struct Resource {
 
 pub enum Body {
     Text(String),
+    FormData(Parameters),
     JsonData(Json),
 }
 

@@ -3,10 +3,13 @@ use http_server::web_server::{
     Route, StatusCode, WebServer,
 };
 
-fn route_form_submission(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
+fn route_form_submission(
+    request: &Request,
+    _path_params: Parameters,
+) -> Result<Response, StatusCode> {
     match &request.body {
-        Body::Text(s) => Ok(Response::ok(s.clone())),
-        _ => Err(StatusCode::UnsupportedMediaType)
+        Body::FormData(params) => Ok(Response::ok(format!("{:?}", params))),
+        _ => Err(StatusCode::UnsupportedMediaType),
     }
 }
 
@@ -37,11 +40,11 @@ fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Respons
 
 fn route_post_user(request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
     match &request.body {
-        Body::Text(_) => Err(StatusCode::UnsupportedMediaType),
         Body::JsonData(json) => Ok(Response::ok(format!(
             "User {}, body = {:?}",
             path_params["id"], json
         ))),
+        _ => Err(StatusCode::UnsupportedMediaType),
     }
 }
 
