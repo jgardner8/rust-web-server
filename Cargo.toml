@@ -8,5 +8,6 @@ debug = true
 
 [dependencies]
 assertables = "9.9.0"
-derive_try_from = { version = "0.1.0", path = "derive_try_from" }
+derive_from_json_object = { version = "0.1.0", path = "derive_from_json_object" }
+derive_try_from_parameters = { version = "0.1.0", path = "derive_try_from_parameters" }
 urlencoding = "2.1.3"

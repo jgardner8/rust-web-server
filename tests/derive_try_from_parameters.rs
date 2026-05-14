@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use derive_try_from::TryFromParameters;
+use derive_try_from_parameters::TryFromParameters;
 use http_server::web_server::Parameters;
 
 #[derive(TryFromParameters, Debug, PartialEq)]

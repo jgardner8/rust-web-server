@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, fs, str::Split};
 
 use crate::vec::Vec;
-use crate::web_server::{Body, FromJson, Json};
+use crate::web_server::{Body, FromJson};
 use crate::web_server::{Request, RequestMethod, Response, StatusCode, request::Parameters};
 
 pub struct Route {

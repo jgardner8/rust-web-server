@@ -1,6 +1,8 @@
+use derive_from_json_object::FromJsonObject;
 use derive_try_from_parameters::TryFromParameters;
+use http_server::vec::Vec;
 use http_server::web_server::{
-    self, Body, ErrorRoute, FromJson, Json, Parameters, Request,
+    self, ErrorRoute, FromJson, Json, Parameters, Request,
     RequestMethod::{Get, Post},
     Response, Route, StatusCode,
 };
@@ -12,48 +14,17 @@ struct Greeting {
     times: u8,
 }
 
-#[derive(Debug)]
+#[derive(FromJsonObject)]
 struct User {
     id: u32,
     name: String,
     preferences: Preferences,
 }
 
-#[derive(Debug)]
+#[derive(FromJsonObject)]
 struct Preferences {
     dark_mode: bool,
-}
-
-impl FromJson for User {
-    fn from_json(json: Json) -> Option<Self> {
-        match json {
-            Json::Object(mut map) => match (
-                map.remove("id").and_then(u32::from_json),
-                map.remove("name").and_then(String::from_json),
-                map.remove("preferences").and_then(Preferences::from_json),
-            ) {
-                (Some(id), Some(name), Some(preferences)) => Some(Self {
-                    id,
-                    name,
-                    preferences,
-                }),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-}
-
-impl FromJson for Preferences {
-    fn from_json(json: Json) -> Option<Self> {
-        match json {
-            Json::Object(mut map) => match map.remove("dark_mode").and_then(bool::from_json) {
-                Some(dark_mode) => Some(Self { dark_mode }),
-                None => None,
-            },
-            _ => None,
-        }
-    }
+    trash: Vec<Json>,
 }
 
 fn route_greeting_result(
@@ -99,7 +70,10 @@ fn route_post_user(
     _path_params: Parameters,
     user: User,
 ) -> Result<Response, StatusCode> {
-    Ok(Response::ok(format!("body = {:?}", user)))
+    Ok(Response::ok(format!(
+        "User {{ id = {}, name = {}, preferences = {{ dark_mode = {}, trash = {:?} }} }}",
+        user.id, user.name, user.preferences.dark_mode, user.preferences.trash
+    )))
 }
 
 fn main() {

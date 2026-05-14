@@ -1,5 +1,5 @@
 [package]
-name = "derive_try_from"
+name = "derive_try_from_parameters"
 version = "0.1.0"
 edition = "2024"
 

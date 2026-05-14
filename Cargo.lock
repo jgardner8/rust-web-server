@@ -22,7 +22,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_try_from"
+name = "derive_from_json_object"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "derive_try_from_parameters"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
@@ -35,7 +44,8 @@ name = "http_server"
 version = "0.1.0"
 dependencies = [
  "assertables",
- "derive_try_from",
+ "derive_from_json_object",
+ "derive_try_from_parameters",
  "urlencoding",
 ]
 

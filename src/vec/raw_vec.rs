@@ -4,7 +4,6 @@ use std::{
     ptr::NonNull,
 };
 
-#[derive(Clone)]
 pub struct RawVec<T> {
     ptr: NonNull<T>,
     pub cap: usize,

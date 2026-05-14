@@ -320,37 +320,6 @@ impl ParseFailure {
     }
 }
 
-pub trait FromJson: Sized {
-    fn from_json(json: Json) -> Option<Self>;
-}
-
-impl FromJson for u32 {
-    fn from_json(json: Json) -> Option<Self> {
-        match json {
-            Json::Double(double) => Some(double as u32),
-            _ => None,
-        }
-    }
-}
-
-impl FromJson for String {
-    fn from_json(json: Json) -> Option<Self> {
-        match json {
-            Json::String(string) => Some(string),
-            _ => None,
-        }
-    }
-}
-
-impl FromJson for bool {
-    fn from_json(json: Json) -> Option<Self> {
-        match json {
-            Json::Boolean(boolean) => Some(boolean),
-            _ => None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,7 +7,7 @@ use super::into_iter::IntoIter;
 use super::raw_val_iter::RawValIter;
 use super::raw_vec::RawVec;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub struct Vec<T> {
     buf: RawVec<T>,
     len: usize,
@@ -106,6 +106,16 @@ impl<T> Drop for Vec<T> {
     fn drop(&mut self) {
         while self.pop().is_some() {}
         // deallocation is handled by RawVec
+    }
+}
+
+impl<T: Clone> Clone for Vec<T> {
+    fn clone(&self) -> Self {
+        let mut vec = Vec::with_capacity(self.len);
+        for value in self.iter() {
+            vec.push(value.clone());
+        }
+        vec
     }
 }
 

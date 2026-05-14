@@ -19,20 +19,32 @@ pub fn derive(input: TokenStream) -> TokenStream {
         _ => unimplemented!(),
     };
 
+    let match_expr = quote! {
+        #( params.get(stringify!(#struct_fields)) ),*
+    };
+
+    let match_case = quote! {
+        #( Some(#struct_fields) ),*
+    };
+
+    let result = quote! {
+        #struct_name {
+            #( #struct_fields: #struct_fields.parse().map_err(|_| http_server::web_server::StatusCode::BadRequest)? ),*
+        }
+    };
+
     let output = quote! {
         #[automatically_derived]
         impl TryFrom<http_server::web_server::Parameters> for #struct_name {
             type Error = http_server::web_server::StatusCode;
             fn try_from(params: http_server::web_server::Parameters) -> Result<Self, Self::Error> {
-                match ( #( params.get(stringify!(#struct_fields)) ),* ) {
-                    ( #( Some(#struct_fields) ),* ) => Ok(#struct_name {
-                        #( #struct_fields: #struct_fields.parse().map_err(|_| http_server::web_server::StatusCode::BadRequest)? ),*
-                    }),
+                match (#match_expr) {
+                    (#match_case) => Ok( #result ),
                     _ => Err(http_server::web_server::StatusCode::BadRequest),
                 }
             }
         }
     };
-    
+
     output.into()
 }
