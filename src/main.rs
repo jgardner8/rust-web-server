@@ -12,16 +12,13 @@ struct Greeting {
     times: u8,
 }
 
-fn route_greeting_form_submission(
+fn route_greeting_result(
     _request: &Request,
     _path_params: Parameters,
     greeting: Greeting,
 ) -> Result<Response, StatusCode> {
     let body = if greeting.times <= 3 {
-        format!(
-            "I will say {} to {}, {} times",
-            greeting.say, greeting.to, greeting.times
-        )
+        format!("I will say {} to {}", greeting.say, greeting.to)
     } else {
         "I'm not a spam robot!".to_string()
     };
@@ -70,7 +67,8 @@ fn main() {
             Route::file(Get, "/", "html/index.html"),
             Route::file(Get, "/index.html", "html/index.html"),
             Route::file(Get, "/greeting_form", "html/form.html"),
-            Route::data_form(Post, "/greeting_form", route_greeting_form_submission),
+            Route::data_form(Post, "/greeting_form", route_greeting_result),
+            Route::data_query(Get, "/greeting_query_params", route_greeting_result),
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/me", route_get_me),
             Route::func(Get, "/user/{id}", route_get_user),

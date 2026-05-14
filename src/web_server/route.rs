@@ -69,20 +69,36 @@ impl Route {
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         let user_function = Box::new(function);
-
-        Route::new(
-            method,
-            PathPattern::new(path_pattern),
-            ResponseType::new_func(
-                move |request: &Request, path_params: Parameters| match &request.body {
-                    Body::FormData(params) => match T::try_from(params.clone()) {
-                        Ok(model) => user_function(request, path_params, model),
-                        Err(_) => Err(StatusCode::BadRequest),
-                    },
-                    _ => Err(StatusCode::UnsupportedMediaType),
+        let wrapper = move |request: &Request, path_params| {
+            match &request.body {
+                Body::FormData(params) => match T::try_from(params.clone()) {
+                    Ok(model) => user_function(request, path_params, model),
+                    Err(_) => Err(StatusCode::BadRequest),
                 },
-            ),
-        )
+                _ => Err(StatusCode::UnsupportedMediaType),
+            }
+        };
+
+        Route::func(method, path_pattern, wrapper)
+    }
+
+    pub fn data_query<T: TryFrom<Parameters>, F>(
+        method: RequestMethod,
+        path_pattern: &str,
+        function: F,
+    ) -> Self
+    where
+        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
+    {
+        let user_function = Box::new(function);
+        let wrapper = move |request: &Request, path_params| {
+            match T::try_from(request.resource.query_params.clone()) {
+                Ok(model) => user_function(request, path_params, model),
+                Err(_) => Err(StatusCode::BadRequest),
+            }
+        };
+
+        Route::func(method, path_pattern, wrapper)
     }
 
     pub fn matches_path(&self, path: &str) -> bool {
