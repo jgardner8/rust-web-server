@@ -137,7 +137,7 @@ impl<T> IntoIterator for Vec<T> {
 }
 
 impl<T> FromIterator<T> for Vec<T> {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut vec = Vec::new();
         for value in iter {
             vec.push(value);
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn debug() {
-        let vec = Vec:: from(["1", "2", "3"]);
+        let vec = Vec::from(["1", "2", "3"]);
         let output = format!("{:?}", vec);
         assert_eq!(output, r#"["1", "2", "3"]"#);
     }

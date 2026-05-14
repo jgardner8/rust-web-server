@@ -18,7 +18,10 @@ fn route_greeting_form_submission(
     greeting: Greeting,
 ) -> Result<Response, StatusCode> {
     let body = if greeting.times <= 3 {
-        format!("I will say {} to {}, {} times", greeting.say, greeting.to, greeting.times)
+        format!(
+            "I will say {} to {}, {} times",
+            greeting.say, greeting.to, greeting.times
+        )
     } else {
         "I'm not a spam robot!".to_string()
     };

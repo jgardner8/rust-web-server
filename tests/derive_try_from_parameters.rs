@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use http_server::web_server::Parameters;
 use derive_try_from::TryFromParameters;
+use http_server::web_server::Parameters;
 
 #[derive(TryFromParameters, Debug, PartialEq)]
 struct Foo {
