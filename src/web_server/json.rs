@@ -196,7 +196,7 @@ impl JsonParser {
             }
         }
 
-        if self.peek()?.to_ascii_lowercase() == 'e' {
+        if self.peek()?.eq_ignore_ascii_case(&'e') {
             self.parse_scientific_notation(&mut dec_str)?;
         }
 

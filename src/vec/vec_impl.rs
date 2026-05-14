@@ -148,7 +148,7 @@ impl<T> FromIterator<T> for Vec<T> {
 
 impl<T, const N: usize> From<[T; N]> for Vec<T> {
     fn from(array: [T; N]) -> Self {
-        Vec::from_iter(array.into_iter())
+        Vec::from_iter(array)
     }
 }
 
@@ -157,15 +157,10 @@ impl<T: Debug> Debug for Vec<T> {
         f.write_char('[')?;
 
         let mut iter = self.iter().peekable();
-        loop {
-            match iter.next() {
-                Some(value) => {
-                    write!(f, "{:?}", value)?;
-                    if iter.peek().is_some() {
-                        f.write_str(", ")?;
-                    }
-                }
-                None => break,
+        while let Some(value) = iter.next() {
+            write!(f, "{:?}", value)?;
+            if iter.peek().is_some() {
+                f.write_str(", ")?;
             }
         }
 
