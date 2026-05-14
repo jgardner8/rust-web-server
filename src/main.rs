@@ -3,6 +3,13 @@ use http_server::web_server::{
     Route, StatusCode, WebServer,
 };
 
+fn route_form_submission(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
+    match &request.body {
+        Body::Text(s) => Ok(Response::ok(s.clone())),
+        _ => Err(StatusCode::UnsupportedMediaType)
+    }
+}
+
 fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
     let body = if request.resource.query_params.is_empty() {
         "Dynamic page - call me with some query parameters!".to_string()
@@ -44,7 +51,8 @@ fn main() {
         Box::new([
             Route::file(Get, "/", "html/index.html"),
             Route::file(Get, "/index.html", "html/index.html"),
-            Route::file(Get, "/other.html", "html/other.html"),
+            Route::file(Get, "/form.html", "html/form.html"),
+            Route::func(Post, "/form_submission", route_form_submission),
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/me", route_get_me),
             Route::func(Get, "/user/{id}", route_get_user),
