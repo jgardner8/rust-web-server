@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::vec::Vec;
+
 #[derive(Debug, PartialEq)]
 pub enum Json {
     Object(BTreeMap<String, Json>),

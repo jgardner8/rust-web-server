@@ -1,5 +1,6 @@
 use std::convert;
 
+use crate::vec::Vec;
 use crate::web_server::{ErrorRoute, Request, Response, Route, StatusCode};
 
 pub struct RequestHandler {

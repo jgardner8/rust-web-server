@@ -80,3 +80,11 @@ impl<T> Drop for RawVec<T> {
         }
     }
 }
+
+impl<T: PartialEq> PartialEq for RawVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe {
+            *self.ptr() == *other.ptr()
+        }
+    }
+}

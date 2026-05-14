@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use super::Vec;
 use super::raw_val_iter::RawValIter;
 
 pub struct Drain<'a, T: 'a> {

@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Write};
 use std::ops::{Deref, DerefMut};
 use std::{mem, ptr};
 
@@ -6,6 +7,7 @@ use super::into_iter::IntoIter;
 use super::raw_val_iter::RawValIter;
 use super::raw_vec::RawVec;
 
+#[derive(PartialEq)]
 pub struct Vec<T> {
     buf: RawVec<T>,
     len: usize,
@@ -131,5 +133,56 @@ impl<T> IntoIterator for Vec<T> {
 
             IntoIter::new(iter, buf)
         }
+    }
+}
+
+impl<T> FromIterator<T> for Vec<T> {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        let mut vec = Vec::new();
+        for value in iter {
+            vec.push(value);
+        }
+        vec
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for Vec<T> {
+    fn from(array: [T; N]) -> Self {
+        Vec::from_iter(array.into_iter())
+    }
+}
+
+impl<T: Debug> Debug for Vec<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('[')?;
+
+        let mut iter = self.iter().peekable();
+        loop {
+            match iter.next() {
+                Some(value) => {
+                    write!(f, "{:?}", value)?;
+                    if iter.peek().is_some() {
+                        f.write_str(", ")?;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        f.write_char(']')?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let vec = Vec:: from(["1", "2", "3"]);
+        let output = format!("{:?}", vec);
+        assert_eq!(output, r#"["1", "2", "3"]"#);
     }
 }

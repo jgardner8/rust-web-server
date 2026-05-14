@@ -8,6 +8,7 @@ use std::{
     string::FromUtf8Error,
 };
 
+use crate::vec::Vec;
 use crate::web_server::{
     Body, Json, Request, RequestMethod, Resource, StatusCode, request::Parameters,
 };
