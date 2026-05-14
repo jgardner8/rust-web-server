@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq)]
 pub enum Json {
-    Object(Box<BTreeMap<String, Json>>),
+    Object(BTreeMap<String, Json>),
     String(String),
     Double(f64),
     Boolean(bool),
-    Array(Box<Vec<Json>>),
+    Array(Vec<Json>),
     Null,
 }
 
@@ -158,7 +158,7 @@ impl JsonParser {
             dec_str.push(c);
             self.eat_any();
         }
-            
+
         loop {
             let c = self.peek()?;
             if c.is_ascii_digit() {
@@ -170,7 +170,7 @@ impl JsonParser {
         }
 
         Ok(())
-    } 
+    }
 
     fn parse_double(&mut self) -> Result<Json> {
         let mut dec_str = String::new();
@@ -255,7 +255,7 @@ impl JsonParser {
         self.eat(']')?;
         self.nesting -= 1;
 
-        Ok(Json::Array(Box::new(values)))
+        Ok(Json::Array(values))
     }
 
     fn parse_object(&mut self) -> Result<Json> {
@@ -292,7 +292,7 @@ impl JsonParser {
         self.eat('}')?;
         self.nesting -= 1;
 
-        Ok(Json::Object(Box::new(map)))
+        Ok(Json::Object(map))
     }
 }
 
@@ -323,7 +323,7 @@ mod tests {
         let json_str = "{}";
 
         let json = Json::parse(json_str);
-        assert_eq!(json.unwrap(), Json::Object(Box::new(BTreeMap::new())))
+        assert_eq!(json.unwrap(), Json::Object(BTreeMap::new()))
     }
 
     #[test]
@@ -335,10 +335,10 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
+            Json::Object(BTreeMap::from([(
                 "key1".to_string(),
                 Json::String("string".to_string())
-            )])))
+            )]))
         );
     }
 
@@ -350,10 +350,10 @@ mod tests {
         let json = Json::parse(&json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
+            Json::Object(BTreeMap::from([(
                 "key1".to_string(),
                 Json::String("\n\t\t\t\"test\"".to_string())
-            )])))
+            )]))
         );
     }
 
@@ -366,10 +366,7 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
-                "key2".to_string(),
-                Json::Double(-2.5)
-            ),])))
+            Json::Object(BTreeMap::from([("key2".to_string(), Json::Double(-2.5)),]))
         );
     }
 
@@ -387,14 +384,15 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([
-                    ("key2".to_string(), Json::Array(Box::new(Vec::from([
+            Json::Object(BTreeMap::from([(
+                "key2".to_string(),
+                Json::Array(Vec::from([
                     Json::Double(3.7e19),
                     Json::Double(3.7e19),
                     Json::Double(3.7e-19),
                     Json::Double(-3.7e-19),
-                ])))
-            )])))
+                ]))
+            )]))
         );
     }
 
@@ -407,10 +405,7 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
-                "key3".to_string(),
-                Json::Boolean(true)
-            )])))
+            Json::Object(BTreeMap::from([("key3".to_string(), Json::Boolean(true))]))
         );
     }
 
@@ -425,21 +420,21 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
+            Json::Object(BTreeMap::from([(
                 "key4".to_string(),
-                Json::Array(Box::new(Vec::from([
+                Json::Array(Vec::from([
                     Json::Double(1.0),
                     Json::Null,
                     Json::Boolean(true),
                     Json::String("asd".to_string()),
-                    Json::Object(Box::new(BTreeMap::new())),
-                    Json::Array(Box::new(Vec::from([
+                    Json::Object(BTreeMap::new()),
+                    Json::Array(Vec::from([
                         Json::Double(1.0),
                         Json::Double(2.0),
                         Json::Double(3.0)
-                    ])))
-                ])))
-            ),])))
+                    ]))
+                ]))
+            ),]))
         );
     }
 
@@ -452,10 +447,10 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
+            Json::Object(BTreeMap::from([(
                 "key5".to_string(),
-                Json::Object(Box::new(BTreeMap::new()))
-            ),])))
+                Json::Object(BTreeMap::new())
+            ),]))
         );
     }
 
@@ -470,11 +465,11 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([
+            Json::Object(BTreeMap::from([
                 ("key7.1".to_string(), Json::Null),
                 ("key7.2".to_string(), Json::Null),
                 ("key7.3".to_string(), Json::Null),
-            ])))
+            ]))
         );
     }
 
@@ -490,13 +485,13 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([(
+            Json::Object(BTreeMap::from([(
                 "key7".to_string(),
-                Json::Object(Box::new(BTreeMap::from([
+                Json::Object(BTreeMap::from([
                     ("key7.1".to_string(), Json::Null),
                     ("key7.2".to_string(), Json::Double(-3.0))
-                ])))
-            ),])))
+                ]))
+            ),]))
         );
     }
 
@@ -509,7 +504,7 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([("key6".to_string(), Json::Null)])))
+            Json::Object(BTreeMap::from([("key6".to_string(), Json::Null)]))
         );
     }
 
@@ -527,23 +522,23 @@ mod tests {
         let json = Json::parse(json_str);
         assert_eq!(
             json.unwrap(),
-            Json::Object(Box::new(BTreeMap::from([
+            Json::Object(BTreeMap::from([
                 ("key1".to_string(), Json::String("string".to_string())),
                 ("key2".to_string(), Json::Double(-2.5)),
                 ("key3".to_string(), Json::Boolean(true)),
                 (
                     "key4".to_string(),
-                    Json::Array(Box::new(Vec::from([
+                    Json::Array(Vec::from([
                         Json::Double(1.0),
                         Json::Null,
                         Json::Boolean(true),
                         Json::String("asd".to_string()),
-                        Json::Object(Box::new(BTreeMap::new())),
-                    ])))
+                        Json::Object(BTreeMap::new()),
+                    ]))
                 ),
-                ("key5".to_string(), Json::Object(Box::new(BTreeMap::new()))),
+                ("key5".to_string(), Json::Object(BTreeMap::new())),
                 ("key6".to_string(), Json::Null)
-            ])))
+            ]))
         );
     }
 
