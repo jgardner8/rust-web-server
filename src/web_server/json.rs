@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::vec::Vec;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Json {
     Object(BTreeMap<String, Json>),
     String(String),
@@ -317,6 +317,37 @@ impl ParseFailure {
             "JSON parse failure (L{}:{}) - {}",
             self.line, self.char, self.msg
         )
+    }
+}
+
+pub trait FromJson: Sized {
+    fn from_json(json: Json) -> Option<Self>;
+}
+
+impl FromJson for u32 {
+    fn from_json(json: Json) -> Option<Self> {
+        match json {
+            Json::Double(double) => Some(double as u32),
+            _ => None,
+        }
+    }
+}
+
+impl FromJson for String {
+    fn from_json(json: Json) -> Option<Self> {
+        match json {
+            Json::String(string) => Some(string),
+            _ => None,
+        }
+    }
+}
+
+impl FromJson for bool {
+    fn from_json(json: Json) -> Option<Self> {
+        match json {
+            Json::Boolean(boolean) => Some(boolean),
+            _ => None,
+        }
     }
 }
 

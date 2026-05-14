@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, fs, str::Split};
 
 use crate::vec::Vec;
-use crate::web_server::{Body, Json};
+use crate::web_server::{Body, FromJson, Json};
 use crate::web_server::{Request, RequestMethod, Response, StatusCode, request::Parameters};
 
 pub struct Route {
@@ -59,9 +59,9 @@ impl Route {
             ResponseType::new_func(function),
         )
     }
-    
-    fn try_invoke_with_model<T: TryFrom<U>, U, F>(
-        data: U,
+
+    fn try_invoke_with_model<T, E, F>(
+        model_result: Result<T, E>,
         function: &F,
         request: &Request,
         path_params: Parameters,
@@ -69,7 +69,7 @@ impl Route {
     where
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        match T::try_from(data) {
+        match model_result {
             Ok(model) => function(request, path_params, model),
             Err(_) => Err(StatusCode::BadRequest),
         }
@@ -84,9 +84,12 @@ impl Route {
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         let wrapper = move |request: &Request, path_params| match request.body {
-            Body::FormData(ref params) => {
-                Self::try_invoke_with_model(params.clone(), &function, request, path_params)
-            }
+            Body::FormData(ref params) => Self::try_invoke_with_model(
+                T::try_from(params.clone()),
+                &function,
+                request,
+                path_params,
+            ),
             _ => Err(StatusCode::UnsupportedMediaType),
         };
 
@@ -103,7 +106,7 @@ impl Route {
     {
         let wrapper = move |request: &Request, path_params| {
             Self::try_invoke_with_model(
-                request.resource.query_params.clone(),
+                T::try_from(request.resource.query_params.clone()),
                 &function,
                 request,
                 path_params,
@@ -113,18 +116,17 @@ impl Route {
         Route::func(method, path_pattern, wrapper)
     }
 
-    pub fn data_json<T: TryFrom<Json>, F>(
-        method: RequestMethod,
-        path_pattern: &str,
-        function: F,
-    ) -> Self
+    pub fn data_json<T: FromJson, F>(method: RequestMethod, path_pattern: &str, function: F) -> Self
     where
         F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
         let wrapper = move |request: &Request, path_params| match request.body {
-            Body::JsonData(ref json) => {
-                Self::try_invoke_with_model(json.clone(), &function, request, path_params)
-            }
+            Body::JsonData(ref json) => Self::try_invoke_with_model(
+                T::from_json(json.clone()).ok_or(()),
+                &function,
+                request,
+                path_params,
+            ),
             _ => Err(StatusCode::UnsupportedMediaType),
         };
 

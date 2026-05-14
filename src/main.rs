@@ -1,6 +1,6 @@
-use derive_try_from::TryFromParameters;
+use derive_try_from_parameters::TryFromParameters;
 use http_server::web_server::{
-    self, Body, ErrorRoute, Parameters, Request,
+    self, Body, ErrorRoute, FromJson, Json, Parameters, Request,
     RequestMethod::{Get, Post},
     Response, Route, StatusCode,
 };
@@ -10,6 +10,50 @@ struct Greeting {
     say: String,
     to: String,
     times: u8,
+}
+
+#[derive(Debug)]
+struct User {
+    id: u32,
+    name: String,
+    preferences: Preferences,
+}
+
+#[derive(Debug)]
+struct Preferences {
+    dark_mode: bool,
+}
+
+impl FromJson for User {
+    fn from_json(json: Json) -> Option<Self> {
+        match json {
+            Json::Object(mut map) => match (
+                map.remove("id").and_then(u32::from_json),
+                map.remove("name").and_then(String::from_json),
+                map.remove("preferences").and_then(Preferences::from_json),
+            ) {
+                (Some(id), Some(name), Some(preferences)) => Some(Self {
+                    id,
+                    name,
+                    preferences,
+                }),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
+impl FromJson for Preferences {
+    fn from_json(json: Json) -> Option<Self> {
+        match json {
+            Json::Object(mut map) => match map.remove("dark_mode").and_then(bool::from_json) {
+                Some(dark_mode) => Some(Self { dark_mode }),
+                None => None,
+            },
+            _ => None,
+        }
+    }
 }
 
 fn route_greeting_result(
@@ -50,14 +94,12 @@ fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Respons
     Ok(Response::ok(format!("User {}", path_params["id"])))
 }
 
-fn route_post_user(request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
-    match &request.body {
-        Body::JsonData(json) => Ok(Response::ok(format!(
-            "User {}, body = {:?}",
-            path_params["id"], json
-        ))),
-        _ => Err(StatusCode::UnsupportedMediaType),
-    }
+fn route_post_user(
+    _request: &Request,
+    _path_params: Parameters,
+    user: User,
+) -> Result<Response, StatusCode> {
+    Ok(Response::ok(format!("body = {:?}", user)))
 }
 
 fn main() {
@@ -72,7 +114,7 @@ fn main() {
             Route::func(Get, "/query_params", route_query_params),
             Route::func(Get, "/user/me", route_get_me),
             Route::func(Get, "/user/{id}", route_get_user),
-            Route::func(Post, "/user/{id}", route_post_user),
+            Route::data_json(Post, "/user", route_post_user),
         ]),
         Box::new([ErrorRoute::file(
             StatusCode::NotFound,

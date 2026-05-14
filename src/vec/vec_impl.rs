@@ -7,7 +7,7 @@ use super::into_iter::IntoIter;
 use super::raw_val_iter::RawValIter;
 use super::raw_vec::RawVec;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct Vec<T> {
     buf: RawVec<T>,
     len: usize,
