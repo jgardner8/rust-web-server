@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::io::prelude::Write;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::time::Duration;
@@ -15,13 +16,15 @@ use crate::{
 const READ_TIMEOUT: Duration = Duration::new(3, 0);
 const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 
-pub fn bind_and_listen_forever<A: ToSocketAddrs>(
+pub fn bind_and_listen_forever<A: ToSocketAddrs + Display>(
     address: A,
     routes: Box<[Route]>,
     error_routes: Box<[ErrorRoute]>,
 ) {
     let thread_pool = ThreadPool::new(4);
-    let listener = TcpListener::bind(address).expect("Fatal: Failed to bind address");
+    let listener = TcpListener::bind(&address).expect("Fatal: Failed to bind address");
+
+    println!("Listening on {}", &address);
 
     let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
 
