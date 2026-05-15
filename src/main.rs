@@ -2,7 +2,7 @@ use derive_from_json_object::FromJsonObject;
 use derive_try_from_parameters::TryFromParameters;
 use http_server::vec::Vec;
 use http_server::web_server::{
-    self, ErrorRoute, FromJson, Json, Parameters, Request,
+    self, ErrorRoute, FromJson, Json, PathParameters, Request,
     RequestMethod::{Get, Post},
     Response, Route, StatusCode,
 };
@@ -29,7 +29,7 @@ struct Preferences {
 
 fn route_greeting_result(
     _request: &Request,
-    _path_params: Parameters,
+    _path_params: PathParameters,
     greeting: Greeting,
 ) -> Result<Response, StatusCode> {
     let body = if greeting.times <= 3 {
@@ -40,7 +40,10 @@ fn route_greeting_result(
     Ok(Response::ok(body))
 }
 
-fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
+fn route_query_params(
+    request: &Request,
+    _path_params: PathParameters,
+) -> Result<Response, StatusCode> {
     let body = if request.resource.query_params.is_empty() {
         "Dynamic page - call me with some query parameters!".to_string()
     } else {
@@ -53,7 +56,7 @@ fn route_query_params(request: &Request, _path_params: Parameters) -> Result<Res
     Ok(Response::ok(body))
 }
 
-fn route_get_me(request: &Request, _path_params: Parameters) -> Result<Response, StatusCode> {
+fn route_get_me(request: &Request, _path_params: PathParameters) -> Result<Response, StatusCode> {
     match request.headers.get("user-cookie") {
         Some(cookie) if cookie == "test" => Ok(Response::ok("Welcome user!".to_string())),
         Some(_) => Err(StatusCode::Forbidden),
@@ -61,13 +64,13 @@ fn route_get_me(request: &Request, _path_params: Parameters) -> Result<Response,
     }
 }
 
-fn route_get_user(_request: &Request, path_params: Parameters) -> Result<Response, StatusCode> {
+fn route_get_user(_request: &Request, path_params: PathParameters) -> Result<Response, StatusCode> {
     Ok(Response::ok(format!("User {}", path_params["id"])))
 }
 
 fn route_post_user(
     _request: &Request,
-    _path_params: Parameters,
+    _path_params: PathParameters,
     user: User,
 ) -> Result<Response, StatusCode> {
     Ok(Response::ok(format!(

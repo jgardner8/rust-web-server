@@ -29,14 +29,16 @@ enum ResponseType {
     Function(Box<RequestProcessorFn>),
 }
 
+pub type PathParameters<'a, 'b> = BTreeMap<&'a str, &'b str>;
+
 type RequestProcessorFn =
-    dyn Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync;
+    dyn Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync;
 
 impl Route {
-    fn new(method: RequestMethod, path_pattern: PathPattern, response_type: ResponseType) -> Self {
+    fn new(method: RequestMethod, path_pattern: &str, response_type: ResponseType) -> Self {
         Route {
             method,
-            path_pattern,
+            path_pattern: PathPattern::new(path_pattern),
             response_type,
         }
     }
@@ -44,20 +46,32 @@ impl Route {
     pub fn file(method: RequestMethod, path_pattern: &str, file_path: &'static str) -> Self {
         Route::new(
             method,
-            PathPattern::new(path_pattern),
-            ResponseType::new_file(file_path),
+            path_pattern,
+            ResponseType::File(Cow::Borrowed(file_path)),
         )
+    }
+
+    pub fn file_dynamic(method: RequestMethod, path_pattern: &str, file_path: String) -> Self {
+        Route::new(
+            method,
+            path_pattern,
+            ResponseType::File(Cow::Owned(file_path)),
+        )
+    }
+
+    fn func_boxed(
+        method: RequestMethod,
+        path_pattern: &str,
+        function: Box<RequestProcessorFn>,
+    ) -> Self {
+        Route::new(method, path_pattern, ResponseType::Function(function))
     }
 
     pub fn func<F>(method: RequestMethod, path_pattern: &str, function: F) -> Self
     where
-        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        Route::new(
-            method,
-            PathPattern::new(path_pattern),
-            ResponseType::new_func(function),
-        )
+        Route::func_boxed(method, path_pattern, Box::new(function))
     }
 
     pub fn data_form<T: TryFrom<Parameters>, F>(
@@ -66,17 +80,18 @@ impl Route {
         function: F,
     ) -> Self
     where
-        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, PathParameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        let wrapper = move |request: &Request, path_params| match request.body {
-            Body::FormData(ref params) => match T::try_from(params.clone()) {
-                Ok(model) => function(request, path_params, model),
-                Err(_) => Err(StatusCode::BadRequest),
-            },
-            _ => Err(StatusCode::UnsupportedMediaType),
-        };
+        let wrapper: Box<RequestProcessorFn> =
+            Box::new(move |request, path_params| match request.body {
+                Body::FormData(ref params) => match T::try_from(params.clone()) {
+                    Ok(model) => function(request, path_params, model),
+                    Err(_) => Err(StatusCode::BadRequest),
+                },
+                _ => Err(StatusCode::UnsupportedMediaType),
+            });
 
-        Route::func(method, path_pattern, wrapper)
+        Route::func_boxed(method, path_pattern, wrapper)
     }
 
     pub fn data_query<T: TryFrom<Parameters>, F>(
@@ -85,31 +100,33 @@ impl Route {
         function: F,
     ) -> Self
     where
-        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, PathParameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        let wrapper = move |request: &Request, path_params| match T::try_from(
-            request.resource.query_params.clone(),
-        ) {
-            Ok(model) => function(request, path_params, model),
-            Err(_) => Err(StatusCode::BadRequest),
-        };
+        let wrapper: Box<RequestProcessorFn> = Box::new(move |request, path_params| {
+            let data = request.resource.query_params.clone();
+            match T::try_from(data) {
+                Ok(model) => function(request, path_params, model),
+                Err(_) => Err(StatusCode::BadRequest),
+            }
+        });
 
-        Route::func(method, path_pattern, wrapper)
+        Route::func_boxed(method, path_pattern, wrapper)
     }
 
     pub fn data_json<T: FromJson, F>(method: RequestMethod, path_pattern: &str, function: F) -> Self
     where
-        F: Fn(&Request, Parameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, PathParameters, T) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        let wrapper = move |request: &Request, path_params| match request.body {
-            Body::JsonData(ref json) => match T::from_json(json.clone()).ok_or(()) {
-                Ok(model) => function(request, path_params, model),
-                Err(_) => Err(StatusCode::BadRequest),
-            },
-            _ => Err(StatusCode::UnsupportedMediaType),
-        };
+        let wrapper: Box<RequestProcessorFn> =
+            Box::new(move |request, path_params| match request.body {
+                Body::JsonData(ref json) => match T::from_json(json.clone()).ok_or(()) {
+                    Ok(model) => function(request, path_params, model),
+                    Err(_) => Err(StatusCode::BadRequest),
+                },
+                _ => Err(StatusCode::UnsupportedMediaType),
+            });
 
-        Route::func(method, path_pattern, wrapper)
+        Route::func_boxed(method, path_pattern, wrapper)
     }
 
     pub fn matches_path(&self, path: &str) -> bool {
@@ -135,18 +152,18 @@ impl ErrorRoute {
     }
 
     pub fn file(status_code: StatusCode, file_path: &'static str) -> Self {
-        Self::new(status_code, ResponseType::new_file(file_path))
+        Self::new(status_code, ResponseType::File(Cow::Borrowed(file_path)))
     }
 
     pub fn file_dynamic(status_code: StatusCode, file_path: String) -> Self {
-        Self::new(status_code, ResponseType::new_file_dynamic(file_path))
+        Self::new(status_code, ResponseType::File(Cow::Owned(file_path)))
     }
 
-    pub fn function<F>(status_code: StatusCode, function: F) -> Self
+    pub fn func<F>(status_code: StatusCode, function: F) -> Self
     where
-        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
+        F: Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
     {
-        Self::new(status_code, ResponseType::new_func(function))
+        Self::new(status_code, ResponseType::Function(Box::new(function)))
     }
 
     pub fn matches(&self, status_code: StatusCode) -> bool {
@@ -228,14 +245,14 @@ impl PathPattern {
             })
     }
 
-    fn get_path_params(&self, path: &str) -> Parameters {
+    fn get_path_params<'a, 'b>(&'a self, path: &'b str) -> PathParameters<'a, 'b> {
         let mut params = BTreeMap::new();
         let path_components = Self::split_components(path);
 
         for (mine, theirs) in self.components.iter().zip(path_components) {
             match (mine, theirs) {
                 (PathComponent::Variable(key), value) => {
-                    params.insert(key.clone(), String::from(value));
+                    params.insert(key.as_str(), value);
                 }
                 (PathComponent::Literal(a), b) => assert!(
                     *a == *b,
@@ -249,25 +266,10 @@ impl PathPattern {
 }
 
 impl ResponseType {
-    fn new_file(path: &'static str) -> ResponseType {
-        ResponseType::File(Cow::Borrowed(path))
-    }
-
-    fn new_file_dynamic(path: String) -> ResponseType {
-        ResponseType::File(Cow::Owned(path))
-    }
-
-    fn new_func<F>(function: F) -> ResponseType
-    where
-        F: Fn(&Request, Parameters) -> Result<Response, StatusCode> + Send + Sync + 'static,
-    {
-        ResponseType::Function(Box::new(function))
-    }
-
     fn to_response(
         &self,
         request: &Request,
-        path_params: Parameters,
+        path_params: PathParameters,
     ) -> Result<Response, StatusCode> {
         match self {
             ResponseType::File(path) => self.file_response(path),
