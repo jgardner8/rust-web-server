@@ -199,14 +199,17 @@ impl PathPattern {
     }
 
     fn parse_components(pattern: &str) -> Vec<PathComponent> {
-        if pattern == "/" {
-            return Vec::new();
-        }
-
         let mut components = Vec::new();
         for component in Self::split_components(pattern) {
             match component.chars().nth(0) {
-                None => panic!("Path pattern {} has empty component", pattern),
+                None => {
+                    assert!(
+                        pattern == "/",
+                        "Path pattern {} has empty component",
+                        pattern
+                    );
+                    return Vec::new();
+                }
                 Some('{') => {
                     assert!(
                         component.ends_with('}'),
@@ -226,14 +229,10 @@ impl PathPattern {
     }
 
     fn matches(&self, path: &str) -> bool {
-        if !path.starts_with('/') {
-            return false;
-        }
-
         let path_components = Self::split_components(path).collect::<Vec<&str>>();
 
         if self.components.len() != path_components.len() {
-            return false;
+            return path == "/" && self.components.is_empty();
         }
 
         self.components
