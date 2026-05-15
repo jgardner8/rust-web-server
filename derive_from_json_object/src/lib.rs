@@ -13,8 +13,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
             ..
         }) => fields
             .named
-            .iter()
-            .map(|f| (f.ident.clone().unwrap(), f.ty.clone()))
+            .into_iter()
+            .map(|f| (f.ident.unwrap(), f.ty))
             .collect::<Vec<_>>(),
         _ => unimplemented!(),
     };

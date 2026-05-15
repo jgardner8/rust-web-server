@@ -213,15 +213,15 @@ impl PathPattern {
             return false;
         }
 
-        let components = Self::split_components(path).collect::<Vec<&str>>();
+        let path_components = Self::split_components(path).collect::<Vec<&str>>();
 
-        if self.components.len() != components.len() {
+        if self.components.len() != path_components.len() {
             return false;
         }
 
         self.components
             .iter()
-            .zip(components)
+            .zip(path_components)
             .all(|(mine, theirs)| match (mine, theirs) {
                 (PathComponent::Variable(_), value) => !value.is_empty(),
                 (PathComponent::Literal(a), b) => a == b,
@@ -230,9 +230,9 @@ impl PathPattern {
 
     fn get_path_params(&self, path: &str) -> Parameters {
         let mut params = BTreeMap::new();
-        let components = Self::split_components(path);
+        let path_components = Self::split_components(path);
 
-        for (mine, theirs) in self.components.iter().zip(components) {
+        for (mine, theirs) in self.components.iter().zip(path_components) {
             match (mine, theirs) {
                 (PathComponent::Variable(key), value) => {
                     params.insert(key.clone(), String::from(value));

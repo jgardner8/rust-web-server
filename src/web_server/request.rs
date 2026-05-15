@@ -71,14 +71,14 @@ impl Resource {
 
     // TODO: Get original encoded value?
     pub fn url_decode(path: &str, query_params: Parameters) -> Result<Self, FromUtf8Error> {
-        let path = decode(path)?;
+        let path = decode(path)?.into_owned();
 
         let query_params = query_params
             .iter()
             .map(|(key, value)| Ok((decode(key)?.into_owned(), decode(value)?.into_owned())))
             .collect::<Result<Parameters, FromUtf8Error>>()?;
 
-        Ok(Resource::new(path.into_owned(), query_params))
+        Ok(Resource::new(path, query_params))
     }
 
     pub fn invalid() -> Self {
@@ -92,6 +92,7 @@ impl Resource {
             .map(|(key, value)| format!("{}={}&", encode(key), encode(value)))
             .collect::<String>();
 
+        // Remove trailing &
         if !query_str.is_empty() {
             query_str = format!("?{}", &query_str[0..query_str.len() - 1]);
         }

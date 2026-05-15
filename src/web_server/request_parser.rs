@@ -82,13 +82,13 @@ where
     &'a T: io::Read,
 {
     let mut reader = BufReader::new(stream);
-    let buf = &mut String::with_capacity(ASSUMED_REQUEST_SIZE);
+    let mut buf = String::with_capacity(ASSUMED_REQUEST_SIZE);
 
     // Read request line
     match reader
         .by_ref()
         .take(MAX_REQUEST_LINE_SIZE.into())
-        .read_line(buf)
+        .read_line(&mut buf)
     {
         Ok(bytes_read) if bytes_read < MAX_REQUEST_LINE_SIZE.into() => bytes_read,
         Ok(_) => return ParseResult::FailedOnRequestLine(StatusCode::URITooLong),
@@ -105,7 +105,11 @@ where
     let mut total_bytes_read: usize = 0;
     let mut headers = BTreeMap::new();
     loop {
-        total_bytes_read += match reader.by_ref().take(MAX_HEADERS_SIZE.into()).read_line(buf) {
+        total_bytes_read += match reader
+            .by_ref()
+            .take(MAX_HEADERS_SIZE.into())
+            .read_line(&mut buf)
+        {
             Ok(bytes_read) => bytes_read,
             Err(e) => return ParseResult::StreamError(e),
         };
@@ -117,7 +121,7 @@ where
             );
         }
 
-        match parse_header(buf) {
+        match parse_header(&buf) {
             Ok(None) => break,
             Ok(Some((key, value))) => headers.insert(key, value),
             Err(status_code) => {
@@ -156,14 +160,14 @@ where
     match reader
         .by_ref()
         .take(body_size_bytes.try_into().unwrap())
-        .read_to_string(buf)
+        .read_to_string(&mut buf)
     {
         Ok(_) => (),
         Err(e) => return ParseResult::StreamError(e),
     }
 
     let body = match headers.get("Content-Type").map(|s| s.as_str()) {
-        Some("application/json") => match Json::parse(buf) {
+        Some("application/json") => match Json::parse(&buf) {
             Ok(json) => Body::JsonData(json),
             Err(_) => {
                 return ParseResult::FailedOnBody(
@@ -174,8 +178,8 @@ where
                 );
             }
         },
-        Some("application/x-www-form-urlencoded") => Body::FormData(parse_query_str(buf)),
-        _ => Body::Text(buf.clone()),
+        Some("application/x-www-form-urlencoded") => Body::FormData(parse_query_str(&buf)),
+        _ => Body::Text(buf),
     };
 
     ParseResult::Success(Request::new(method, resource, headers, body))

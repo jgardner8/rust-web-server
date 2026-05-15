@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, btree_map::Entry};
 
 use crate::vec::Vec;
 
@@ -274,19 +274,22 @@ impl JsonParser {
 
         if self.peek()? != '}' {
             loop {
-                let key = &self.parse_key()?;
+                let key = self.parse_key()?;
 
                 self.eat(':')?;
                 self.drop_whitespace()?;
 
                 let value = self.parse_value()?;
 
-                if map.insert(key.clone(), value).is_some() {
-                    return Err(ParseFailure::from(
-                        format!("Key \"{}\" is set on object more than once", key),
-                        self,
-                    ));
-                }
+                match map.entry(key) {
+                    Entry::Occupied(o) => {
+                        return Err(ParseFailure::from(
+                            format!("Key \"{}\" is set on object more than once", o.key()),
+                            self,
+                        ));
+                    }
+                    Entry::Vacant(v) => v.insert(value),
+                };
 
                 self.drop_whitespace()?;
                 if self.peek()? != ',' {

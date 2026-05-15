@@ -27,10 +27,9 @@ impl RequestHandler {
             Err(self.handle_error(StatusCode::NotFound, request))
         } else {
             matched_routes_by_path
-                .iter()
+                .into_iter()
                 .find(|route| route.matches_method(request.method))
                 .ok_or(self.handle_error(StatusCode::MethodNotAllowed, request))
-                .copied()
         }
     }
 

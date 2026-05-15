@@ -28,7 +28,7 @@ pub fn bind_and_listen_forever<A: ToSocketAddrs>(
     for tcp_stream in listener.incoming() {
         match tcp_stream {
             Ok(tcp_stream) => {
-                let request_handler = request_handler.clone();
+                let request_handler = Arc::clone(&request_handler);
                 thread_pool.execute(move || {
                     handle_connection(tcp_stream, request_handler);
                 });
