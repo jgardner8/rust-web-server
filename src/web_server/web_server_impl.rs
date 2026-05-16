@@ -13,6 +13,7 @@ use crate::{
     web_server::{ErrorRoute, Route, request_handler::RequestHandler},
 };
 
+const THREADS: usize = 20;
 const READ_TIMEOUT: Duration = Duration::new(3, 0);
 const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 
@@ -21,7 +22,7 @@ pub fn bind_and_listen_forever<A: ToSocketAddrs + Display>(
     routes: Box<[Route]>,
     error_routes: Box<[ErrorRoute]>,
 ) {
-    let thread_pool = ThreadPool::new(4);
+    let thread_pool = ThreadPool::new(THREADS);
     let listener = TcpListener::bind(&address).expect("Fatal: Failed to bind address");
 
     println!("Listening on {}", &address);
