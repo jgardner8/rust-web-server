@@ -88,7 +88,7 @@ fn route_post_user(
 }
 
 fn main() {
-    web_server::bind_and_listen_forever(
+    web_server::bind_and_listen(
         "127.0.0.1:8080",
         Box::new([
             Route::file(Get, "/", "html/index.html"),

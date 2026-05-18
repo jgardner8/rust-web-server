@@ -54,8 +54,6 @@ impl Drop for ThreadPool {
         drop(self.sender.take()); // manually drop sender first so workers stop looking for new jobs
 
         for worker in self.workers.drain() {
-            println!("Shutting down Worker {}", worker.id);
-
             worker
                 .thread
                 .join()

@@ -8,6 +8,9 @@ Rust web server and framework with easy API and JSON parser.
 
 * Built from basics - custom `ThreadPool`, `Arc`, `Vec`, `RequestParser` and `JsonParser` are used with Rust's `TCPListener`. All HTTP protocol implementation is here.
 * Parses JSON, query strings and form submissions into user's model struct using derive macros. Validation and parsing completely handled at framework level.
+* Handles errors with user-defined routes.
+* Supports basic HTML templates and static file serving.
+* Shuts down gracefully in response to signals.
 
 ## Usage
 
