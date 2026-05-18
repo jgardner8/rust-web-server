@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, str::FromStr, string::FromUtf8Error};
+use std::{collections::BTreeMap, fmt::Display, str::FromStr, string::FromUtf8Error};
 use urlencoding::{decode, encode};
 
 use crate::web_server::json::Json;
@@ -104,5 +104,15 @@ impl Resource {
         };
 
         format!("/{}{}", encode(path), query_str)
+    }
+}
+
+impl Display for Body {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Body::Text(s) => f.write_str(s),
+            Body::FormData(params) => write!(f, "{:?}", params),
+            Body::JsonData(json) => f.write_str(&json.to_string()),
+        }
     }
 }

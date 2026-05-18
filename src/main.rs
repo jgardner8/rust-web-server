@@ -69,14 +69,16 @@ fn route_get_user(_request: &Request, path_params: PathParameters) -> Result<Res
 }
 
 fn route_post_user(
-    _request: &Request,
+    request: &Request,
     _path_params: PathParameters,
     user: User,
 ) -> Result<Response, StatusCode> {
-    Ok(Response::ok(format!(
-        "User {{ id = {}, name = {}, preferences = {{ dark_mode = {}, trash = {:?} }} }}",
+    let user_model_str = format!(
+        "User model: {{ id = {}, name = {}, preferences = {{ dark_mode = {}, trash = {:?} }} }}",
         user.id, user.name, user.preferences.dark_mode, user.preferences.trash
-    )))
+    );
+    let user_json_str = format!("User JSON: {}", request.body);
+    Ok(Response::ok(format!("{}\n{}", user_model_str, user_json_str)))
 }
 
 fn main() {

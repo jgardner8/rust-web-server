@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, btree_map::Entry};
+use std::{collections::{BTreeMap, btree_map::Entry}, fmt::Display};
 
 use crate::vec::Vec;
 
@@ -46,6 +46,87 @@ impl Json {
                 Err(parse_failure)
             }
         }
+    }
+
+    fn as_str_indented(&self, indent_level: usize) -> String {
+        let indent = "\t".repeat(indent_level);
+        match self {
+            Json::Object(map) => {
+                if map.is_empty() {
+                    return String::from("{}");
+                }
+
+                let child_indent = "\t".repeat(indent_level + 1);
+                let mut result = String::from("{\n");
+                for (i, (key, value)) in map.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(",\n");
+                    }
+                    result.push_str(&child_indent);
+                    result.push_str(&Self::string_as_json(key));
+                    result.push_str(": ");
+                    result.push_str(&value.as_str_indented(indent_level + 1));
+                }
+                result.push_str("\n");
+                result.push_str(&indent);
+                result.push('}');
+                result
+            }
+            Json::String(s) => Self::string_as_json(s),
+            Json::Double(d) => {
+                if d.fract() == 0.0 {
+                    format!("{:.0}", d)
+                } else {
+                    format!("{}", d)
+                }
+            }
+            Json::Boolean(b) if *b => "true".to_string(),
+            Json::Boolean(_) => "false".to_string(),
+            Json::Array(arr) => {
+                if arr.is_empty() {
+                    return String::from("[]");
+                }
+                
+                let child_indent = "\t".repeat(indent_level + 1);
+                let mut result = String::from("[\n");
+                for (i, value) in arr.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(",\n");
+                    }
+                    result.push_str(&child_indent);
+                    result.push_str(&value.as_str_indented(indent_level + 1));
+                }
+                result.push_str("\n");
+                result.push_str(&indent);
+                result.push(']');
+                result
+            }
+            Json::Null => String::from("null"),
+        }
+    }
+
+    fn string_as_json(s: &str) -> String {
+        let (lower_bound, _) = s.chars().size_hint();
+        let mut result = String::with_capacity(lower_bound);
+        result.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str("\\\\"),
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                '\t' => result.push_str("\\t"),
+                _ => result.push(c),
+            }
+        }
+        result.push('"');
+        result
+    }
+}
+
+impl Display for Json {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.as_str_indented(0))
     }
 }
 
@@ -324,7 +405,7 @@ impl ParseFailure {
 }
 
 #[cfg(test)]
-mod tests {
+mod parsing_tests {
     use super::*;
     use assertables::*;
 
@@ -629,5 +710,117 @@ mod tests {
 }"###;
         let json = &Json::parse(json_str);
         assert_ok!(json);
+    }
+}
+
+#[cfg(test)]
+mod to_string_tests {
+    use super::*;
+
+    #[test]
+    fn as_str_empty_object() {
+        let json = Json::Object(BTreeMap::new());
+        assert_eq!(json.to_string(), "{}");
+    }
+
+    #[test]
+    fn as_str_string() {
+        let json = Json::String("line1\nline2\ttab".to_string());
+        assert_eq!(json.to_string(), "\"line1\\nline2\\ttab\"");
+    }
+
+    #[test]
+    fn as_str_double() {
+        assert_eq!(Json::Double(3.14).to_string(), "3.14");
+        assert_eq!(Json::Double(-2.0).to_string(), "-2");
+        assert_eq!(Json::Double(2.0).to_string(), "2");
+    }
+
+    #[test]
+    fn as_str_boolean() {
+        assert_eq!(Json::Boolean(true).to_string(), "true");
+        assert_eq!(Json::Boolean(false).to_string(), "false");
+    }
+
+    #[test]
+    fn as_str_null() {
+        assert_eq!(Json::Null.to_string(), "null");
+    }
+
+    #[test]
+    fn as_str_array() {
+        let json = Json::Array(Vec::from([
+            Json::Double(1.1),
+            Json::String("test".to_string()),
+            Json::Boolean(true),
+            Json::Null,
+        ]));
+        assert_eq!(
+            json.to_string(),
+            r#"[
+    1.1,
+    "test",
+    true,
+    null
+]"#.replace("    ", "\t")
+        );
+    }
+
+    #[test]
+    fn as_str_object() {
+        let json = Json::Object(BTreeMap::from([
+            ("name".to_string(), Json::String("Alice".to_string())),
+            ("age".to_string(), Json::Double(30.0)),
+            ("active".to_string(), Json::Boolean(true)),
+        ]));
+        assert_eq!(
+            json.to_string(),
+            r#"{
+    "active": true,
+    "age": 30,
+    "name": "Alice"
+}"#.replace("    ", "\t")
+        );
+    }
+
+    #[test]
+    fn as_str_nested() {
+        let json = Json::Object(BTreeMap::from([
+            (
+                "point".to_string(),
+                Json::Object(BTreeMap::from([
+                    ("x".to_string(), Json::Double(1.2)),
+                    (
+                        "y".to_string(),
+                        Json::Object(BTreeMap::from([(
+                            "z".to_string(),
+                            Json::Double(3.1),
+                        )])),
+                    ),
+                ])),
+            ),
+            ("label".to_string(), Json::String("origin".to_string())),
+        ]));
+        assert_eq!(
+            json.to_string(),
+            r#"{
+    "label": "origin",
+    "point": {
+        "x": 1.2,
+        "y": {
+            "z": 3.1
+        }
+    }
+}"#.replace("    ", "\t")
+        );
+    }
+
+    #[test]
+    fn as_str_roundtrip() {
+        let original = r#"{"key1": "string", "key2": -2.5, "key3": true, "key4": [1, null, true, "asd", {}], "key5": {}, "key6": null}"#;
+        let json = Json::parse(original).unwrap();
+        let serialized = json.to_string();
+        let reparsed = Json::parse(&serialized).unwrap();
+        assert_eq!(json, reparsed);
     }
 }
