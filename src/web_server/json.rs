@@ -67,7 +67,7 @@ impl Json {
                     result.push_str(": ");
                     result.push_str(&value.as_str_indented(indent_level + 1));
                 }
-                result.push_str("\n");
+                result.push('\n');
                 result.push_str(&indent);
                 result.push('}');
                 result
@@ -96,7 +96,7 @@ impl Json {
                     result.push_str(&child_indent);
                     result.push_str(&value.as_str_indented(indent_level + 1));
                 }
-                result.push_str("\n");
+                result.push('\n');
                 result.push_str(&indent);
                 result.push(']');
                 result
