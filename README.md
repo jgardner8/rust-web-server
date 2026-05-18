@@ -75,19 +75,37 @@ struct Greeting {
 
 ### Request Handling
 
-Routes:
-* `Route::file(Get, "/", "html/index.html")`: Respond to request with file contents
-* `Route::func(Get, "/", route_base_func)` Respond to request with result of `route_base_func`
-* `Route::data_form(Post, "/", route_data_func)` Respond to request with result of `route_data_func` - receives extra model param from form submission
-* `Route::data_query(Get, "/", route_data_func)` Respond to request with result of `route_data_func` - receives extra model param from query string
-* `Route::data_json(Post, "/", route_data_func)` Respond to request with result of `route_data_func` - receives extra model param from json request body
+#### Routes:
+```rust
+// Respond to request with file contents
+Route::file(Get, "/", "html/index.html") 
 
-Request handler functions:
-* `route_base_func:	Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync`
-* `route_data_func<T>: Fn(&Request, PathParameters, T) -> Result<Response, StatusCode> + Send + Sync`
-	* Used when you want to receive your own model struct `T`.
+// Respond to request with result of `route_base_func`
+Route::func(Get, "/", route_base_func)
 
-Request handler input:
+// Respond to request with result of `route_data_func`
+Route::data_form(Post, "/", route_data_func) // receives extra model param from form submission
+Route::data_query(Get, "/", route_data_func) // receives extra model param from query string
+Route::data_json(Post, "/", route_data_func) // receives extra model param from json request body
+
+// Request handler functions
+fn route_base_func:	Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync
+fn route_data_func<T>: Fn(&Request, PathParameters, T) -> Result<Response, StatusCode> + Send + Sync
+```
+
+#### Error routes:
+```rust
+// Respond to all instances of status code with file contents
+ErrorRoute::file(StatusCode::NotFound, "html/404.html")
+
+// Respond to all instances of status code with result of `error_route_func`
+ErrorRoute::func(StatusCode::NotFound, error_route_func)
+
+// Error handler function
+fn error_route_func: Fn(&Request, PathParameters) -> Result<Response, StatusCode> + Send + Sync
+```
+
+#### Request handler input:
 ```rust
 pub struct Request {
     pub method: RequestMethod,
@@ -129,7 +147,11 @@ Ok(Response::new(StatusCode::Ok, body))
 Err(StatusCode::NotFound)
 
 // Templated response
-Response::render_template(StatusCode::Ok, "html/greeting_result.html", &[("say", &greeting.say), ("to", &greeting.to)])
+Response::render_template(
+    StatusCode::Ok, 
+    "html/greeting_result.html", 
+    &[("say", &greeting.say), ("to", &greeting.to)]
+)
 ```
 
 ## Credits
