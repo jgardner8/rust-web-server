@@ -81,15 +81,14 @@ fn route_post_user(
         user.id, user.name, user.preferences.dark_mode, user.preferences.trash
     );
     let user_json_str = format!("User JSON: {}", request.body);
-    Ok(Response::ok(format!(
-        "{}\n{}",
-        user_model_str, user_json_str
-    )))
+    Ok(Response::new(
+        StatusCode::Created,
+        format!("{}\n{}", user_model_str, user_json_str),
+    ))
 }
 
 fn main() {
-    web_server::bind_and_listen(
-        "127.0.0.1:8080",
+    web_server::spawn(
         Box::new([
             Route::file(Get, "/", "html/index.html"),
             Route::file(Get, "/index.html", "html/index.html"),

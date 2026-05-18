@@ -3,8 +3,8 @@ use std::fmt::Display;
 use std::io::{self, prelude::Write};
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
 use std::time::Duration;
+use std::{env, thread};
 
 use crate::web_server::request::Resource;
 use crate::web_server::request_parser::ParseResult;
@@ -15,23 +15,20 @@ use crate::{
     web_server::{ErrorRoute, Route, request_handler::RequestHandler},
 };
 
+const DEFAULT_PORT: u16 = 8080;
 const THREADS: usize = 20;
 const READ_TIMEOUT: Duration = Duration::new(3, 0);
 const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
-pub fn bind_and_listen<A: ToSocketAddrs + Display>(
-    address: A,
-    routes: Box<[Route]>,
-    error_routes: Box<[ErrorRoute]>,
-) {
+pub fn spawn(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>) {
     let thread_pool = ThreadPool::new(THREADS);
-    let listener = create_tcp_listener(address);
+    let listener = create_tcp_listener(format!("127.0.0.1:{}", get_port()));
     let shutdown_requested = create_shutdown_signal_handler();
     let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
 
     loop {
-        if shutdown_requested.load(Ordering::SeqCst) {
+        if shutdown_requested.load(Ordering::Acquire) {
             break;
         }
 
@@ -55,6 +52,13 @@ pub fn bind_and_listen<A: ToSocketAddrs + Display>(
     }
 }
 
+fn get_port() -> u16 {
+    env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(DEFAULT_PORT)
+}
+
 fn create_tcp_listener<A: ToSocketAddrs + Display>(address: A) -> TcpListener {
     let listener = TcpListener::bind(&address).expect("Fatal: Failed to bind address");
 
@@ -73,7 +77,7 @@ fn create_shutdown_signal_handler() -> Arc<AtomicBool> {
 
     ctrlc::set_handler(move || {
         println!("\nShutdown signal received, stopping...");
-        shutdown_request_writer.store(true, Ordering::SeqCst);
+        shutdown_request_writer.store(true, Ordering::Release);
     })
     .expect("Fatal: Failed to register signal handler");
 

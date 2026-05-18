@@ -77,13 +77,8 @@ impl Worker {
                     .recv();
 
                 match message {
-                    Ok(job) => {
-                        job();
-                    }
-                    Err(_) => {
-                        println!("Worker {id} shutting down");
-                        break;
-                    }
+                    Ok(job) => job(),
+                    Err(_) => break // shutting down worker
                 }
             }
         });

@@ -14,6 +14,8 @@ Rust web server and framework with easy API and JSON parser.
 
 ## Usage
 
+Set the port to listen on using the `PORT` environment variable, otherwise the default is 8080.
+
 See [main.rs](https://github.com/jgardner8/rust-web-server/blob/master/src/main.rs) for a complete example, including the below content.
 
 ### Routing
@@ -22,8 +24,7 @@ See [main.rs](https://github.com/jgardner8/rust-web-server/blob/master/src/main.
 
 ```rust
 fn main() {
-    web_server::bind_and_listen_forever(
-        "127.0.0.1:8080",
+    web_server::spawn(
         Box::new([
             Route::file(Get, "/", "html/index.html"),
             Route::func(Get, "/user/{id}", route_get_user),

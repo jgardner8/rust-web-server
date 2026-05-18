@@ -123,7 +123,7 @@ where
 
         match parse_header(&buf) {
             Ok(None) => break,
-            Ok(Some((key, value))) => headers.insert(key, value),
+            Ok(Some((key, value))) => headers.insert(key.to_lowercase(), value),
             Err(status_code) => {
                 return ParseResult::FailedOnHeaders(status_code, method, resource);
             }
@@ -135,7 +135,7 @@ where
     // Read body
     buf.clear();
     let body_size_bytes = match headers
-        .get("Content-Length")
+        .get("content-length")
         .and_then(|v| v.parse::<usize>().ok())
     {
         Some(bytes) if bytes < MAX_BODY_SIZE => bytes,
@@ -166,7 +166,7 @@ where
         Err(e) => return ParseResult::StreamError(e),
     }
 
-    let body = match headers.get("Content-Type").map(|s| s.as_str()) {
+    let body = match headers.get("content-type").map(|s| s.as_str()) {
         Some("application/json") => match Json::parse(&buf) {
             Ok(json) => Body::JsonData(json),
             Err(_) => {
