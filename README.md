@@ -120,6 +120,18 @@ pub enum Body {
 }
 ```
 
+#### Responses:
+```rust
+// Basic response
+Ok(Response::new(StatusCode::Ok, body))
+
+// Error response - this will be handled by `error_routes` if such a route exists
+Err(StatusCode::NotFound)
+
+// Templated response
+Response::render_template(StatusCode::Ok, "html/greeting_result.html", &[("say", &greeting.say), ("to", &greeting.to)])
+```
+
 ## Credits
 
 * `Arc` and `Vec` are from [The Rustonomicon](https://doc.rust-lang.org/nightly/nomicon/)

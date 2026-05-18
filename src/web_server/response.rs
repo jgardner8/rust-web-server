@@ -1,3 +1,5 @@
+use std::fs;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StatusCode {
     // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
@@ -72,6 +74,22 @@ impl Response {
         Response {
             status_code: StatusCode::Ok,
             body,
+        }
+    }
+
+    /// Renders an HTML template by substituting `{{key}}` placeholders with provided values
+    pub fn render_template(status_code_on_success: StatusCode, path: &str, vars: &[(&str, &str)]) -> Result<Response, StatusCode> {
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                let body = vars.iter().fold(content, |acc, (key, value)| {
+                    acc.replace(&format!("{{{{{}}}}}", key), value)
+                });
+                Ok(Response::new(status_code_on_success, body))
+            }
+            Err(e) => {
+                eprintln!("Error: Cannot read template {}, error: {:?}", path, e);
+                Err(StatusCode::InternalServerError)
+            }
         }
     }
 

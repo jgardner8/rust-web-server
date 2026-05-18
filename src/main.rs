@@ -32,12 +32,15 @@ fn route_greeting_result(
     _path_params: PathParameters,
     greeting: Greeting,
 ) -> Result<Response, StatusCode> {
-    let body = if greeting.times <= 3 {
-        format!("I will say {} to {}", greeting.say, greeting.to)
+    if greeting.times <= 3 {
+        Response::render_template(
+            StatusCode::Ok,
+            "html/greeting_result.html",
+            &[("say", &greeting.say), ("to", &greeting.to)],
+        )
     } else {
-        "I'm not a spam robot!".to_string()
-    };
-    Ok(Response::ok(body))
+        Err(StatusCode::BadRequest)
+    }
 }
 
 fn route_query_params(
@@ -78,7 +81,10 @@ fn route_post_user(
         user.id, user.name, user.preferences.dark_mode, user.preferences.trash
     );
     let user_json_str = format!("User JSON: {}", request.body);
-    Ok(Response::ok(format!("{}\n{}", user_model_str, user_json_str)))
+    Ok(Response::ok(format!(
+        "{}\n{}",
+        user_model_str, user_json_str
+    )))
 }
 
 fn main() {
