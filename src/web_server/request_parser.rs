@@ -81,12 +81,12 @@ pub fn parse_stream<'a, T>(stream: &'a T) -> ParseResult
 where
     &'a T: io::Read,
 {
-    let mut reader = BufReader::new(stream);
+    let reader = &mut BufReader::new(stream);
+
     let mut buf = String::with_capacity(ASSUMED_REQUEST_SIZE);
 
     // Read request line
     match reader
-        .by_ref()
         .take(MAX_REQUEST_LINE_SIZE.into())
         .read_line(&mut buf)
     {
@@ -106,7 +106,6 @@ where
     let mut headers = BTreeMap::new();
     loop {
         total_bytes_read += match reader
-            .by_ref()
             .take(MAX_HEADERS_SIZE.into())
             .read_line(&mut buf)
         {
@@ -158,7 +157,6 @@ where
         }
     };
     match reader
-        .by_ref()
         .take(body_size_bytes.try_into().unwrap())
         .read_to_string(&mut buf)
     {
