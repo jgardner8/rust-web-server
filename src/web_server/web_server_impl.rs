@@ -39,9 +39,8 @@ pub fn spawn(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>) {
                     .expect("Fatal: Failed to set TcpStream to blocking mode");
 
                 let request_handler = Arc::clone(&request_handler);
-
                 thread_pool.execute(move || {
-                    handle_connection(tcp_stream, request_handler);
+                    handle_connection(tcp_stream, &request_handler);
                 });
             }
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -84,7 +83,7 @@ fn create_shutdown_signal_handler() -> Arc<AtomicBool> {
     shutdown_request_reader
 }
 
-fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHandler>) {
+fn handle_connection(mut tcp_stream: TcpStream, request_handler: &RequestHandler) {
     tcp_stream
         .set_read_timeout(Some(READ_TIMEOUT))
         .expect("set_read_timeout system call failed");
@@ -109,7 +108,7 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: Arc<RequestHand
 
 fn handle_request_parse_result(
     request_parse_result: ParseResult,
-    request_handler: Arc<RequestHandler>,
+    request_handler: &RequestHandler,
 ) -> Option<Response> {
     match request_parse_result {
         ParseResult::StreamError(_) => None,
