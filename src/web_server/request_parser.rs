@@ -106,10 +106,7 @@ where
     let mut total_bytes_read: usize = 0;
     let mut headers = BTreeMap::new();
     loop {
-        total_bytes_read += match reader
-            .take(MAX_HEADERS_SIZE.into())
-            .read_line(&mut buf)
-        {
+        total_bytes_read += match reader.take(MAX_HEADERS_SIZE.into()).read_line(&mut buf) {
             Ok(bytes_read) => bytes_read,
             Err(e) => return ParseResult::StreamError(e),
         };

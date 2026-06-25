@@ -78,7 +78,11 @@ impl Response {
     }
 
     /// Renders an HTML template by substituting `{{key}}` placeholders with provided values
-    pub fn render_template(status_code_on_success: StatusCode, path: &str, vars: &[(&str, &str)]) -> Result<Response, StatusCode> {
+    pub fn render_template(
+        status_code_on_success: StatusCode,
+        path: &str,
+        vars: &[(&str, &str)],
+    ) -> Result<Response, StatusCode> {
         match fs::read_to_string(path) {
             Ok(content) => {
                 let body = vars.iter().fold(content, |acc, (key, value)| {

@@ -78,7 +78,7 @@ impl Worker {
 
                 match message {
                     Ok(job) => job(),
-                    Err(_) => break // shutting down worker
+                    Err(_) => break, // shutting down worker
                 }
             }
         });

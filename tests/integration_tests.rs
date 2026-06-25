@@ -9,7 +9,7 @@ fn find_free_port() -> u16 {
     listener.local_addr().unwrap().port()
 }
 
-fn wait_for_server_ready(port: u16) { 
+fn wait_for_server_ready(port: u16) {
     let client = Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
     for _ in 0..50 {
@@ -288,6 +288,7 @@ fn test_post_user_with_json_that_does_not_fit_model_returns_bad_request() {
 
     server.kill().ok();
 }
+
 #[test]
 fn test_unknown_route_returns_not_found() {
     let (client, base_url, mut server) = spawn_server();

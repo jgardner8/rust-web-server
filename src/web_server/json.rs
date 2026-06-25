@@ -1,4 +1,7 @@
-use std::{collections::{BTreeMap, btree_map::Entry}, fmt::Display};
+use std::{
+    collections::{BTreeMap, btree_map::Entry},
+    fmt::Display,
+};
 
 use crate::vec::Vec;
 
@@ -86,7 +89,7 @@ impl Json {
                 if arr.is_empty() {
                     return String::from("[]");
                 }
-                
+
                 let child_indent = "\t".repeat(indent_level + 1);
                 let mut result = String::from("[\n");
                 for (i, value) in arr.iter().enumerate() {
@@ -762,7 +765,8 @@ mod to_string_tests {
     "test",
     true,
     null
-]"#.replace("    ", "\t")
+]"#
+            .replace("    ", "\t")
         );
     }
 
@@ -779,7 +783,8 @@ mod to_string_tests {
     "active": true,
     "age": 30,
     "name": "Alice"
-}"#.replace("    ", "\t")
+}"#
+            .replace("    ", "\t")
         );
     }
 
@@ -792,10 +797,7 @@ mod to_string_tests {
                     ("x".to_string(), Json::Double(1.2)),
                     (
                         "y".to_string(),
-                        Json::Object(BTreeMap::from([(
-                            "z".to_string(),
-                            Json::Double(3.1),
-                        )])),
+                        Json::Object(BTreeMap::from([("z".to_string(), Json::Double(3.1))])),
                     ),
                 ])),
             ),
@@ -811,7 +813,8 @@ mod to_string_tests {
             "z": 3.1
         }
     }
-}"#.replace("    ", "\t")
+}"#
+            .replace("    ", "\t")
         );
     }
 

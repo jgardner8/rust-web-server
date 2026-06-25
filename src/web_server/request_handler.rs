@@ -8,15 +8,19 @@ use crate::web_server::{ErrorRoute, Request, Response, Route, StatusCode};
 pub struct RequestHandler {
     routes: Box<[Route]>,
     error_routes: Box<[ErrorRoute]>,
-    rate_limiter: RateLimiter<IpAddr>
+    rate_limiter: RateLimiter<IpAddr>,
 }
 
 impl RequestHandler {
-    pub fn new(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>, rate_limiter: RateLimiter<IpAddr>) -> Self {
+    pub fn new(
+        routes: Box<[Route]>,
+        error_routes: Box<[ErrorRoute]>,
+        rate_limiter: RateLimiter<IpAddr>,
+    ) -> Self {
         RequestHandler {
             routes,
             error_routes,
-            rate_limiter
+            rate_limiter,
         }
     }
 
@@ -70,7 +74,7 @@ impl RequestHandler {
         if self.rate_limiter.client_over_rate_limit(request.addr) {
             return self.error_response(StatusCode::TooManyRequests, request);
         }
-        
+
         self.error_response(status_code, request)
     }
 }

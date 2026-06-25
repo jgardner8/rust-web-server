@@ -52,7 +52,7 @@ where
         request_times: &mut VecDeque<u16>,
         sec_since_start: u16,
     ) {
-        let window_start = sec_since_start.checked_sub(self.window_sec).unwrap_or(0);
+        let window_start = sec_since_start.saturating_sub(self.window_sec);
 
         while !request_times.is_empty() {
             if request_times[0] < window_start {
