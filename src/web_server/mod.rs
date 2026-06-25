@@ -1,5 +1,6 @@
 mod from_json;
 mod json;
+mod rate_limiter;
 mod request;
 mod request_handler;
 mod request_parser;

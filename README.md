@@ -23,8 +23,13 @@ See [main.rs](https://github.com/jgardner8/rust-web-server/blob/master/src/main.
 `"{var}"` in a route is used as a variable. It will be passed through to request handler in `path_params: Parameters` with key `var`
 
 ```rust
+const REQUEST_LIMIT: usize = 5;
+const REQUEST_WINDOW_SEC: u16 = 60;
+
 fn main() {
     web_server::spawn(
+        REQUEST_LIMIT,
+        REQUEST_WINDOW_SEC,
         Box::new([
             Route::file(Get, "/", "html/index.html"),
             Route::func(Get, "/user/{id}", route_get_user),
@@ -116,6 +121,7 @@ pub struct Request {
     pub resource: Resource,
     pub headers: Parameters,
     pub body: Body,
+    pub addr: IpAddr,
 }
 
 pub enum RequestMethod {

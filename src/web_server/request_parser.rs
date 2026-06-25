@@ -4,6 +4,7 @@ use std::{
         self, BufReader,
         prelude::{BufRead, Read},
     },
+    net::IpAddr,
     str::FromStr,
     string::FromUtf8Error,
 };
@@ -77,7 +78,7 @@ fn parse_header(header_line: &str) -> Result<Option<(String, String)>, StatusCod
     }
 }
 
-pub fn parse_stream<'a, T>(stream: &'a T) -> ParseResult
+pub fn parse_stream<'a, T>(stream: &'a T, addr: IpAddr) -> ParseResult
 where
     &'a T: io::Read,
 {
@@ -180,7 +181,7 @@ where
         _ => Body::Text(buf),
     };
 
-    ParseResult::Success(Request::new(method, resource, headers, body))
+    ParseResult::Success(Request::new(method, resource, headers, body, addr))
 }
 
 impl ParseResult {

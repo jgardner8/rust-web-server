@@ -302,3 +302,20 @@ fn test_unknown_route_returns_not_found() {
 
     server.kill().ok();
 }
+
+#[test]
+fn test_rate_limiter() {
+    let (client, base_url, mut server) = spawn_server();
+
+    for i in 0..10 {
+        let response = client
+            .get(format!("{}/index.html", base_url))
+            .send()
+            .expect("Request failed");
+
+        let expected_status_code = if i < 4 { 200 } else { 429 };
+        assert_eq!(response.status().as_u16(), expected_status_code);
+    }
+
+    server.kill().ok();
+}

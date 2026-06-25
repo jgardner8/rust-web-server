@@ -7,6 +7,9 @@ use http_server::web_server::{
     Response, Route, StatusCode,
 };
 
+const REQUEST_LIMIT: usize = 5;
+const REQUEST_WINDOW_SEC: u16 = 60;
+
 #[derive(TryFromParameters)]
 struct Greeting {
     say: String,
@@ -89,6 +92,8 @@ fn route_post_user(
 
 fn main() {
     web_server::spawn(
+        REQUEST_LIMIT,
+        REQUEST_WINDOW_SEC,
         Box::new([
             Route::file(Get, "/", "html/index.html"),
             Route::file(Get, "/index.html", "html/index.html"),

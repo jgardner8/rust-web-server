@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, str::FromStr, string::FromUtf8Error};
+use std::{collections::BTreeMap, fmt::Display, net::IpAddr, str::FromStr, string::FromUtf8Error};
 use urlencoding::{decode, encode};
 
 use crate::web_server::json::Json;
@@ -8,6 +8,7 @@ pub struct Request {
     pub resource: Resource,
     pub headers: Parameters,
     pub body: Body,
+    pub addr: IpAddr,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -35,12 +36,19 @@ pub enum Body {
 }
 
 impl Request {
-    pub fn new(method: RequestMethod, resource: Resource, headers: Parameters, body: Body) -> Self {
+    pub fn new(
+        method: RequestMethod,
+        resource: Resource,
+        headers: Parameters,
+        body: Body,
+        addr: IpAddr,
+    ) -> Self {
         Request {
             method,
             resource,
             headers,
             body,
+            addr,
         }
     }
 

@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::io::{self, prelude::Write};
-use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{IpAddr, TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::{env, thread};
 
+use crate::web_server::rate_limiter::RateLimiter;
 use crate::web_server::request::Resource;
 use crate::web_server::request_parser::ParseResult;
 use crate::web_server::{Body, Request, RequestMethod, Response, request_parser};
@@ -21,11 +22,20 @@ const READ_TIMEOUT: Duration = Duration::new(3, 0);
 const WRITE_TIMEOUT: Duration = Duration::new(5, 0);
 const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
-pub fn spawn(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>) {
+pub fn spawn(
+    request_limit: usize,
+    request_window_sec: u16,
+    routes: Box<[Route]>,
+    error_routes: Box<[ErrorRoute]>,
+) {
     let thread_pool = ThreadPool::new(THREADS);
     let listener = create_tcp_listener(format!("127.0.0.1:{}", get_port()));
     let shutdown_requested = create_shutdown_signal_handler();
-    let request_handler = Arc::new(RequestHandler::new(routes, error_routes));
+    let request_handler = Arc::new(RequestHandler::new(
+        routes,
+        error_routes,
+        RateLimiter::new(request_limit, request_window_sec),
+    ));
 
     loop {
         if shutdown_requested.load(Ordering::Acquire) {
@@ -33,14 +43,14 @@ pub fn spawn(routes: Box<[Route]>, error_routes: Box<[ErrorRoute]>) {
         }
 
         match listener.accept() {
-            Ok((tcp_stream, _addr)) => {
+            Ok((tcp_stream, addr)) => {
                 tcp_stream
                     .set_nonblocking(false)
                     .expect("Fatal: Failed to set TcpStream to blocking mode");
 
                 let request_handler = Arc::clone(&request_handler);
                 thread_pool.execute(move || {
-                    handle_connection(tcp_stream, &request_handler);
+                    handle_connection(tcp_stream, addr.ip(), &request_handler);
                 });
             }
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -83,7 +93,7 @@ fn create_shutdown_signal_handler() -> Arc<AtomicBool> {
     shutdown_request_reader
 }
 
-fn handle_connection(mut tcp_stream: TcpStream, request_handler: &RequestHandler) {
+fn handle_connection(mut tcp_stream: TcpStream, addr: IpAddr, request_handler: &RequestHandler) {
     tcp_stream
         .set_read_timeout(Some(READ_TIMEOUT))
         .expect("set_read_timeout system call failed");
@@ -91,11 +101,12 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: &RequestHandler
         .set_write_timeout(Some(WRITE_TIMEOUT))
         .expect("set_write_timeout system call failed");
 
-    let request_parse_result = request_parser::parse_stream(&tcp_stream);
+    let request_parse_result = request_parser::parse_stream(&tcp_stream, addr);
 
     print!("{}", request_parse_result.to_log());
 
-    if let Some(response) = handle_request_parse_result(request_parse_result, request_handler) {
+    if let Some(response) = handle_request_parse_result(request_parse_result, addr, request_handler)
+    {
         println!(" -> {}", response.to_log());
 
         tcp_stream
@@ -108,6 +119,7 @@ fn handle_connection(mut tcp_stream: TcpStream, request_handler: &RequestHandler
 
 fn handle_request_parse_result(
     request_parse_result: ParseResult,
+    addr: IpAddr,
     request_handler: &RequestHandler,
 ) -> Option<Response> {
     match request_parse_result {
@@ -119,18 +131,25 @@ fn handle_request_parse_result(
                 Resource::invalid(),
                 BTreeMap::new(),
                 Body::Text(String::new()),
+                addr,
             ),
         )),
         ParseResult::FailedOnHeaders(status_code, method, resource) => {
             Some(request_handler.handle_error(
                 status_code,
-                &Request::new(method, resource, BTreeMap::new(), Body::Text(String::new())),
+                &Request::new(
+                    method,
+                    resource,
+                    BTreeMap::new(),
+                    Body::Text(String::new()),
+                    addr,
+                ),
             ))
         }
         ParseResult::FailedOnBody(status_code, method, resource, headers) => {
             Some(request_handler.handle_error(
                 status_code,
-                &Request::new(method, resource, headers, Body::Text(String::new())),
+                &Request::new(method, resource, headers, Body::Text(String::new()), addr),
             ))
         }
         ParseResult::Success(request) => Some(request_handler.handle_request(&request)),
